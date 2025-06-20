@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лидерборд GRECHA</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+        h1 { text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: right; }
+        th { background: #f4f4f4; }
+        td.wallet { text-align: left; font-family: monospace; }
+        .error { color: red; text-align: center; }
+    </style>
+</head>
+<body>
+<h1>Лидерборд GRECHA по входящим переводам</h1>
+
+<table id="leaderboard">
+    <thead>
+    <tr><th>№</th><th>Кошелек</th><th>Сумма</th></tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    // Точка прокси
+    const API_URL = '/api/grecha';
+
+    // Жёстко заданная дата-время отсечения
+    // Формат строки: "YYYY-MM-DDTHH:mm"
+    // Изменяйте эту константу под нужный вам порог
+    const SINCE_DATETIME = '2025-06-19T00:00';
+    const SINCE_MS = new Date(SINCE_DATETIME).getTime();
+
+    async function fetchAndRender() {
+        const tbody = document.querySelector('#leaderboard tbody');
+        tbody.innerHTML = '';  // очистка перед перерисовкой
+
+        try {
+            const resp = await fetch(API_URL);
+            const payload = await resp.json().catch(() => ({}));
+
+            if (!resp.ok) {
+                throw new Error(payload.error || `Статус ${resp.status}`);
+            }
+            let data = Array.isArray(payload.transfers)
+                ? payload.transfers
+                : [];
+
+            // Фильтрация по жёстко заданному порогу времени
+            data = data.filter(tx => {
+                const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                return txMs >= SINCE_MS;
+            });
+
+            // Группируем и суммируем amount
+            const sums = data.reduce((acc, tx) => {
+                const w   = tx.from;
+                const amt = parseFloat(tx.amount) / 1000;
+                acc[w] = (acc[w] || 0) + (isNaN(amt) ? 0 : amt);
+                return acc;
+            }, {});
+
+            // Сортируем по убыванию суммы
+            const sorted = Object.entries(sums)
+                .map(([wallet, total]) => ({ wallet, total }))
+                .sort((a, b) => b.total - a.total);
+
+            // Рендерим строки
+            if (sorted.length > 0) {
+                sorted.forEach((item, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td class="wallet">${item.wallet}</td>
+              <td>${item.total.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })}</td>
+            `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = `
+            <tr><td colspan="3" class="error">
+              Нет переводов после ${SINCE_DATETIME.replace('T', ' ')}
+            </td></tr>`;
+            }
+
+        } catch (err) {
+            console.error('Client error:', err);
+            tbody.innerHTML = `
+          <tr><td colspan="3" class="error">
+            Ошибка загрузки: ${err.message}
+          </td></tr>`;
+        }
+    }
+
+    // Запускаем на загрузке страницы
+    window.addEventListener('DOMContentLoaded', fetchAndRender);
+</script>
+</body>
+</html>
