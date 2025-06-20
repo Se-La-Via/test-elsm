@@ -34,72 +34,73 @@
     const SINCE_DATETIME = '2025-06-19T00:00';
     const SINCE_MS = new Date(SINCE_DATETIME).getTime();
 
+    // Timestamp последнего реального запроса (вначале — 0)
+    let lastFetch = 0;
+    // Минимальный интервал между запросами — 5 минут
+    const MIN_INTERVAL = 5 * 60 * 1000;
+
     async function fetchAndRender() {
-        const tbody = document.querySelector('#leaderboard tbody');
-        tbody.innerHTML = '';  // очистка перед перерисовкой
+        const now = Date.now();
+        // Если с прошлого удачного запроса прошло меньше MIN_INTERVAL — пропускаем
+        if (now - lastFetch < MIN_INTERVAL) {
+            console.log('Пропускаем fetch — слишком часто:', ((now - lastFetch)/1000).toFixed(1), 'с назад');
+            return;
+        }
+        lastFetch = now;  // фиксируем время перед реальным запросом
 
         try {
             const resp = await fetch(API_URL);
             const payload = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(payload.error || `Status ${resp.status}`);
 
-            if (!resp.ok) {
-                throw new Error(payload.error || `Статус ${resp.status}`);
-            }
-            let data = Array.isArray(payload.transfers)
-                ? payload.transfers
-                : [];
+            let data = Array.isArray(payload.transfers) ? payload.transfers : [];
+            data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
 
-            // Фильтрация по жёстко заданному порогу времени
-            data = data.filter(tx => {
-                const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                return txMs >= SINCE_MS;
-            });
-
-            // Группируем и суммируем amount
+            // Группируем и делим amount на 1000
             const sums = data.reduce((acc, tx) => {
                 const w   = tx.from;
-                const amt = parseFloat(tx.amount) / 1000;
-                acc[w] = (acc[w] || 0) + (isNaN(amt) ? 0 : amt);
+                const raw = parseFloat(tx.amount);
+                const amt = isNaN(raw) ? 0 : raw / 1000;
+                acc[w] = (acc[w] || 0) + amt;
                 return acc;
             }, {});
 
-            // Сортируем по убыванию суммы
             const sorted = Object.entries(sums)
                 .map(([wallet, total]) => ({ wallet, total }))
                 .sort((a, b) => b.total - a.total);
 
-            // Рендерим строки
-            if (sorted.length > 0) {
+            const tbody = document.querySelector('#leaderboard tbody');
+            tbody.innerHTML = '';
+            if (sorted.length) {
                 sorted.forEach((item, idx) => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-              <td>${idx + 1}</td>
-              <td class="wallet">${item.wallet}</td>
-              <td>${item.total.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
+            <td>${idx + 1}</td>
+            <td class="wallet">${item.wallet}</td>
+            <td>${item.total.toLocaleString(undefined, {
+                        minimumFractionDigits: 3, maximumFractionDigits: 3
                     })}</td>
-            `;
+          `;
                     tbody.appendChild(tr);
                 });
             } else {
                 tbody.innerHTML = `
-            <tr><td colspan="3" class="error">
-              Нет переводов после ${SINCE_DATETIME.replace('T', ' ')}
-            </td></tr>`;
+          <tr><td colspan="3" class="error">
+            Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
+          </td></tr>`;
             }
 
         } catch (err) {
             console.error('Client error:', err);
-            tbody.innerHTML = `
-          <tr><td colspan="3" class="error">
-            Ошибка загрузки: ${err.message}
-          </td></tr>`;
         }
     }
 
-    // Запускаем на загрузке страницы
-    window.addEventListener('DOMContentLoaded', fetchAndRender);
+    // Первоначальный запуск
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchAndRender();
+        // Проверяем каждые 60 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
+        setInterval(fetchAndRender, 60 * 1000);
+    });
 </script>
 </body>
 </html>
