@@ -13,6 +13,7 @@
             background-repeat: no-repeat;
             background-position: top;
             background-size: cover;
+            min-height: 100vh;
         }
         h1 {
             text-align: center;
@@ -102,7 +103,7 @@
     // Жёстко заданная дата-время отсечения
     // Формат строки: "YYYY-MM-DDTHH:mm"
     // Изменяйте эту константу под нужный вам порог
-    const SINCE_DATETIME = '2025-06-19T00:00';
+    const SINCE_DATETIME = '2025-05-31T00:00';
     const SINCE_MS = new Date(SINCE_DATETIME).getTime();
 
     // Timestamp последнего реального запроса (вначале — 0)
