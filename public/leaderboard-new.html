@@ -23,7 +23,7 @@
             width: 100%;
             flex-direction: column;
         }
-        .leaderboard-header, .leaderboard-items {
+        .leaderboard-header {
             display: flex;
             flex-direction: row;
             flex-wrap: nowrap;
@@ -47,6 +47,14 @@
         .col-3 {
             width: 20%;
         }
+        .leaderboard-items-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
         .error {
             color: red;
             text-align: center;
@@ -62,7 +70,7 @@
         <div class="leaderboard-header-item col-2">Кошелек</div>
         <div class="leaderboard-header-item col-3">Сумма</div>
     </div>
-    <div class="leaderboard-items">
+    <div class="leaderboard-items-wrapper">
 
     </div>
 </div>
@@ -112,7 +120,7 @@
                 .map(([wallet, total]) => ({ wallet, total }))
                 .sort((a, b) => b.total - a.total);
 
-            const tbody = document.querySelector('#leaderboard');
+            const tbody = document.querySelector('#leaderboard .leaderboard-items-wrapper');
             tbody.innerHTML = '';
             if (sorted.length) {
                 sorted.forEach((item, idx) => {
