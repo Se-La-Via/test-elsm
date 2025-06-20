@@ -1,7 +1,7 @@
 // api/grecha.js
 import fetch from 'node-fetch';
 
-const API_URL = 'https://dialog-tbot.com/history/ft-transfers/?wallet_id=grecha_duplo.near&direction=in&symbol=GRECHA&limit=200&skip=0';
+const API_URL = 'https://dialog-tbot.com/history/ft-transfers/?wallet_id=oao_north.near&direction=in&symbol=GRECHA&limit=200&skip=0';
 
 export default async function handler(req, res) {
     try {
