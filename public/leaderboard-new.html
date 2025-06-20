@@ -124,7 +124,7 @@
             tbody.innerHTML = '';
             if (sorted.length) {
                 sorted.forEach((item, idx) => {
-                    const tr = document.createElement('<div class="leaderboard-item">');
+                    const tr = document.createElement('div');
                     tr.innerHTML = `
             <td>${idx + 1}</td>
             <td class="wallet">${item.wallet}</td>
