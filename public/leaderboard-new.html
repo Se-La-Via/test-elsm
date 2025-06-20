@@ -126,11 +126,11 @@
                 sorted.forEach((item, idx) => {
                     const tr = document.createElement('div');
                     tr.innerHTML = `
-            <td>${idx + 1}</td>
-            <td class="wallet">${item.wallet}</td>
-            <td>${item.total.toLocaleString(undefined, {
+            <div class="leaderboard-item col-1">${idx + 1}</div>
+            <div class="leaderboard-item col-2">${item.wallet}</div>
+            <div class="leaderboard-item col-3">${item.total.toLocaleString(undefined, {
                         minimumFractionDigits: 3, maximumFractionDigits: 3
-                    })}</td>
+                    })}</div>
           `;
                     tbody.appendChild(tr);
                 });
