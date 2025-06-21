@@ -2,22 +2,30 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лидерборд GRECHA</title>
+    <title>LUDO-GRECHA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 600px;
             margin: 40px auto;
+            background-image: url("bg1.jpg");
+            background-attachment: fixed;
+            background-position: center;
         }
         h1 {
             text-align: center;
+            color: ivory;
+            text-shadow: 4px 4px 5px #9541AC;
         }
+
         #leaderboard {
             display: flex;
             flex-direction: column;
             margin: 0 5px;
+            background: rgb(120 103 197 / 75%);
         }
+
         .leaderboard-header, .leaderboard-item {
             display: flex;
             justify-content: space-between;
@@ -30,6 +38,7 @@
             background: #bb37fc;
             font-weight:700;
         }
+
         .col-1 {
             width:10%;
         }
@@ -42,6 +51,17 @@
             width:20%;
             text-align:right;
         }
+
+        .leaderboard-item .col-1, .leaderboard-item .col-3 {
+            font-size: 17px;
+        }
+        .leaderboard-item .col-2 {
+            font-weight: 700;
+            font-size: 16px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .error {
             color: red;
             text-align: center;
@@ -50,7 +70,7 @@
     </style>
 </head>
 <body>
-<h1>Лидерборд GRECHA</h1>
+<h1>LUDO-GRECHA - лидерборд</h1>
 <div id="leaderboard">
     <div class="leaderboard-header">
         <div class="col-1">№</div>
