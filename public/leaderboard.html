@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лидерборд grecha_duplo</title>
+    <title>Лидерборд grecha_duplo-2</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
@@ -13,30 +13,69 @@
             background-repeat: no-repeat;
             background-position: top;
             background-size: cover;
-            height: 100vh;
+            min-height: 100vh;
         }
         h1 {
             text-align: center;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+        #leaderboard {
+            display: flex;
+            margin: 0 5px;
+            flex-direction: column;
         }
-        tr.table-header th {
-            text-align: center;
+        .leaderboard-header {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+            position: sticky;
+            top: 0;
+            background: #bb37fc;
         }
-        th, td {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            text-align: right;
+        .leaderboard-header-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 2px 1px rgba(0, 0, 0, 0.75);
+            padding: 7px;
+            font-weight: 700;
         }
-        th {
-            background: hsl(0deg 0% 96% / 75%);
+        .col-1 {
+            width: 10%;
         }
-        td.wallet {
-            text-align: left;
-            font-family: monospace;
+        .col-2 {
+            width: 70%;
+        }
+        .col-3 {
+            width: 20%;
+        }
+        .leaderboard-items-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
+        .leaderboard-items-wrapper > div {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.75);
+            padding: 7px;
+        }
+        .leaderboard-item.col-2 {
+            justify-content: flex-start;
         }
         .error {
             color: red;
@@ -45,14 +84,18 @@
     </style>
 </head>
 <body>
-<h1>Лидерборд grecha_duplo</h1>
+<h1>Лидерборд grecha_duplo-2</h1>
 
-<table id="leaderboard">
-    <thead>
-    <tr class="table-header"><th>№</th><th>Кошелек</th><th>Сумма</th></tr>
-    </thead>
-    <tbody></tbody>
-</table>
+<div id="leaderboard">
+    <div class="leaderboard-header">
+        <div class="leaderboard-header-item col-1">№</div>
+        <div class="leaderboard-header-item col-2">Кошелек</div>
+        <div class="leaderboard-header-item col-3">Сумма</div>
+    </div>
+    <div class="leaderboard-items-wrapper">
+
+    </div>
+</div>
 
 <script>
     // Точка прокси
@@ -99,25 +142,25 @@
                 .map(([wallet, total]) => ({ wallet, total }))
                 .sort((a, b) => b.total - a.total);
 
-            const tbody = document.querySelector('#leaderboard tbody');
+            const tbody = document.querySelector('#leaderboard .leaderboard-items-wrapper');
             tbody.innerHTML = '';
             if (sorted.length) {
                 sorted.forEach((item, idx) => {
-                    const tr = document.createElement('tr');
+                    const tr = document.createElement('div');
                     tr.innerHTML = `
-            <td>${idx + 1}</td>
-            <td class="wallet">${item.wallet}</td>
-            <td>${item.total.toLocaleString(undefined, {
+            <div class="leaderboard-item col-1">${idx + 1}</div>
+            <div class="leaderboard-item col-2">${item.wallet}</div>
+            <div class="leaderboard-item col-3">${item.total.toLocaleString(undefined, {
                         minimumFractionDigits: 3, maximumFractionDigits: 3
-                    })}</td>
+                    })}</div>
           `;
                     tbody.appendChild(tr);
                 });
             } else {
                 tbody.innerHTML = `
-          <tr><td colspan="3" class="error">
+          <div class="error">
             Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
-          </td></tr>`;
+          </div>`;
             }
 
         } catch (err) {
@@ -128,8 +171,8 @@
     // Первоначальный запуск
     window.addEventListener('DOMContentLoaded', () => {
         fetchAndRender();
-        // Проверяем каждые 60 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
-        setInterval(fetchAndRender, 60 * 1000);
+        // Проверяем каждые 300 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
+        setInterval(fetchAndRender, 300 * 1000);
     });
 </script>
 </body>
