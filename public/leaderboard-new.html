@@ -80,6 +80,9 @@
         .error {
             color: red;
             text-align: center;
+            justify-content: center !important;
+            border: 1px solid red;
+            padding: 10px;
         }
     </style>
 </head>
@@ -104,7 +107,7 @@
     // Жёстко заданная дата-время отсечения
     // Формат строки: "YYYY-MM-DDTHH:mm"
     // Изменяйте эту константу под нужный вам порог
-    const SINCE_DATETIME = '2025-05-08T00:00';
+    const SINCE_DATETIME = '2025-06-19T00:00';
     const SINCE_MS = new Date(SINCE_DATETIME).getTime();
 
     // Timestamp последнего реального запроса (вначале — 0)
@@ -158,9 +161,9 @@
                 });
             } else {
                 tbody.innerHTML = `
-          <tr><td colspan="3" class="error">
+          <div class="error">
             Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
-          </td></tr>`;
+          </div>`;
             }
 
         } catch (err) {
