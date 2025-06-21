@@ -124,8 +124,10 @@
                 .sort((a,b) => b.total - a.total);
 
             if (!sorted.length) {
+                const sinceDate = new Date(SINCE_MS);
+                const iso = sinceDate.toISOString().replace('T', ' ').slice(0,19);
                 container.innerHTML = `<div class="error">
-            Нет переводов после ${SINCE_MS.replace('T',' ')}
+            Нет переводов после ${sinceDate.toISOString().replace('T', ' ').slice(0,19)}
           </div>`;
                 return;
             }
