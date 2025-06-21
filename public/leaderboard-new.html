@@ -171,8 +171,8 @@
     // Первоначальный запуск
     window.addEventListener('DOMContentLoaded', () => {
         fetchAndRender();
-        // Проверяем каждые 60 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
-        setInterval(fetchAndRender, 60 * 1000);
+        // Проверяем каждые 300 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
+        setInterval(fetchAndRender, 300 * 1000);
     });
 </script>
 </body>
