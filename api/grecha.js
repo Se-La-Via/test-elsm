@@ -2,7 +2,7 @@
 import fetch from 'node-fetch';
 
 const BASE_URL = 'https://dialog-tbot.com/history/ft-transfers/';
-const DEFAULT_LIMIT = 50;
+const DEFAULT_LIMIT = 100;
 const DEFAULT_SKIP  = 0;
 
 export default async function handler(req, res) {

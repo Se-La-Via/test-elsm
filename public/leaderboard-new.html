@@ -5,18 +5,48 @@
     <title>Лидерборд GRECHA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        /* Ваши стили из turn0file0 */
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
-        h1 { text-align: center; }
-        #leaderboard { display: flex; flex-direction: column; margin: 0 5px; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+        h1 {
+            text-align: center;
+        }
+        #leaderboard {
+            display: flex;
+            flex-direction: column;
+            margin: 0 5px;
+        }
         .leaderboard-header, .leaderboard-item {
-            display: flex; justify-content: space-between; padding: 7px;
+            display: flex;
+            justify-content: space-between;
+            padding: 7px;
             box-shadow: 0 1px 0 rgba(0,0,0,0.3);
         }
-        .leaderboard-header { position: sticky; top:0; background: #bb37fc; font-weight:700; }
-        .col-1 { width:10%; } .col-2 { width:70%; text-align:left; font-family: monospace; }
-        .col-3 { width:20%; text-align:right; }
-        .error { color: red; text-align: center; padding:10px; }
+        .leaderboard-header {
+            position: sticky;
+            top:0;
+            background: #bb37fc;
+            font-weight:700;
+        }
+        .col-1 {
+            width:10%;
+        }
+        .col-2 {
+            width:70%;
+            text-align: left;
+            font-family: monospace;
+        }
+        .col-3 {
+            width:20%;
+            text-align:right;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            padding:10px;
+        }
     </style>
 </head>
 <body>
@@ -35,7 +65,7 @@
     const SINCE_MS = new Date('2025-04-27T00:00').getTime();
     const BATCH = 200;
 
-    // 1) Скачиваем все партии по 200, пока не вернётся «неполный» пакет
+    // 1) Download all batches of 200 until an “incomplete” batch is returned
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -50,16 +80,16 @@
         return all;
     }
 
-    // 2) Фильтруем, агрегируем, рендерим
+    // 2) Filtering, aggregating, rendering
     async function renderBoard() {
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
             let data = await fetchAll();
-            // Оставляем только с нужной даты
+            // Leave only from the desired date
             data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
 
-            // Группируем и делим amount на 1000
+            // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
                 const raw = parseFloat(tx.amount);
                 const val = isNaN(raw) ? 0 : raw/1000;
@@ -67,7 +97,7 @@
                 return acc;
             }, {});
 
-            // Сортируем и выводим
+            // Sort and output
             const sorted = Object.entries(sums)
                 .map(([wallet, total]) => ({ wallet, total }))
                 .sort((a,b) => b.total - a.total);
