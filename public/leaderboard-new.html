@@ -32,7 +32,7 @@
 <script>
     const API_PATH = '/api/grecha';
     const SINCE_MS = new Date('2025-04-27T00:00').getTime();
-    const BATCH = 200;
+    const BATCH = 50;
 
     // 1) Скачиваем все партии по 200, пока не вернётся «неполный» пакет
     async function fetchAll() {
