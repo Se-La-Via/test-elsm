@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лидерборд grecha_duplo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            background-image: url('/public/background.jpg');
+            background-repeat: no-repeat;
+            background-position: top;
+            background-size: cover;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+        }
+        #leaderboard {
+            display: flex;
+            margin: 0 5px;
+            flex-direction: column;
+        }
+        .leaderboard-header {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+            position: sticky;
+            top: 0;
+            background: #bb37fc;
+        }
+        .leaderboard-header-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 2px 1px rgba(0, 0, 0, 0.75);
+            padding: 7px;
+            font-weight: 700;
+        }
+        .col-1 {
+            width: 10%;
+        }
+        .col-2 {
+            width: 70%;
+        }
+        .col-3 {
+            width: 20%;
+        }
+        .leaderboard-items-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
+        .leaderboard-items-wrapper > div {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.75);
+            padding: 7px;
+        }
+        .leaderboard-item.col-2 {
+            justify-content: flex-start;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            justify-content: center !important;
+            border: 1px solid red;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>Лидерборд grecha_duplo</h1>
+
+<div id="leaderboard">
+    <div class="leaderboard-header">
+        <div class="leaderboard-header-item col-1">№</div>
+        <div class="leaderboard-header-item col-2">Кошелек</div>
+        <div class="leaderboard-header-item col-3">Сумма</div>
+    </div>
+    <div class="leaderboard-items-wrapper">
+
+    </div>
+</div>
+
+<script>
+    // Точка прокси
+    const API_URL = '/api/grecha';
+
+    // Жёстко заданная дата-время отсечения
+    // Формат строки: "YYYY-MM-DDTHH:mm"
+    // Изменяйте эту константу под нужный вам порог
+    const SINCE_DATETIME = '2025-06-19T00:00';
+    const SINCE_MS = new Date(SINCE_DATETIME).getTime();
+
+    // Timestamp последнего реального запроса (вначале — 0)
+    let lastFetch = 0;
+    // Минимальный интервал между запросами — 5 минут
+    const MIN_INTERVAL = 5 * 60 * 1000;
+
+    async function fetchAndRender() {
+        const now = Date.now();
+        // Если с прошлого удачного запроса прошло меньше MIN_INTERVAL — пропускаем
+        if (now - lastFetch < MIN_INTERVAL) {
+            console.log('Пропускаем fetch — слишком часто:', ((now - lastFetch)/1000).toFixed(1), 'с назад');
+            return;
+        }
+        lastFetch = now;  // фиксируем время перед реальным запросом
+
+        try {
+            const resp = await fetch(API_URL);
+            const payload = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(payload.error || `Status ${resp.status}`);
+
+            let data = Array.isArray(payload.transfers) ? payload.transfers : [];
+            data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
+
+            // Группируем и делим amount на 1000
+            const sums = data.reduce((acc, tx) => {
+                const w   = tx.from;
+                const raw = parseFloat(tx.amount);
+                const amt = isNaN(raw) ? 0 : raw / 1000;
+                acc[w] = (acc[w] || 0) + amt;
+                return acc;
+            }, {});
+
+            const sorted = Object.entries(sums)
+                .map(([wallet, total]) => ({ wallet, total }))
+                .sort((a, b) => b.total - a.total);
+
+            const tbody = document.querySelector('#leaderboard .leaderboard-items-wrapper');
+            tbody.innerHTML = '';
+            if (sorted.length) {
+                sorted.forEach((item, idx) => {
+                    const tr = document.createElement('div');
+                    tr.innerHTML = `
+            <div class="leaderboard-item col-1">${idx + 1}</div>
+            <div class="leaderboard-item col-2">${item.wallet}</div>
+            <div class="leaderboard-item col-3">${item.total.toLocaleString(undefined, {
+                        minimumFractionDigits: 3, maximumFractionDigits: 3
+                    })}</div>
+          `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = `
+          <div class="error">
+            Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
+          </div>`;
+            }
+
+        } catch (err) {
+            console.error('Client error:', err);
+        }
+    }
+
+    // Первоначальный запуск
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchAndRender();
+        // Проверяем каждые 300 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
+        setInterval(fetchAndRender, 300 * 1000);
+    });
+</script>
+</body>
+</html>

@@ -2,181 +2,104 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лидерборд grecha_duplo-2</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Лидерборд GRECHA</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 40px auto;
-            background-image: url('/public/background.jpg');
-            background-repeat: no-repeat;
-            background-position: top;
-            background-size: cover;
-            min-height: 100vh;
+        /* Ваши стили из turn0file0 */
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+        h1 { text-align: center; }
+        #leaderboard { display: flex; flex-direction: column; margin: 0 5px; }
+        .leaderboard-header, .leaderboard-item {
+            display: flex; justify-content: space-between; padding: 7px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.3);
         }
-        h1 {
-            text-align: center;
-        }
-        #leaderboard {
-            display: flex;
-            margin: 0 5px;
-            flex-direction: column;
-        }
-        .leaderboard-header {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            align-items: normal;
-            align-content: center;
-            position: sticky;
-            top: 0;
-            background: #bb37fc;
-        }
-        .leaderboard-header-item {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 2px 1px rgba(0, 0, 0, 0.75);
-            padding: 7px;
-            font-weight: 700;
-        }
-        .col-1 {
-            width: 10%;
-        }
-        .col-2 {
-            width: 70%;
-        }
-        .col-3 {
-            width: 20%;
-        }
-        .leaderboard-items-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            align-items: normal;
-            align-content: center;
-        }
-        .leaderboard-items-wrapper > div {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            align-items: normal;
-            align-content: center;
-        }
-        .leaderboard-item {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.75);
-            padding: 7px;
-        }
-        .leaderboard-item.col-2 {
-            justify-content: flex-start;
-        }
-        .error {
-            color: red;
-            text-align: center;
-            justify-content: center !important;
-            border: 1px solid red;
-            padding: 10px;
-        }
+        .leaderboard-header { position: sticky; top:0; background: #bb37fc; font-weight:700; }
+        .col-1 { width:10%; } .col-2 { width:70%; text-align:left; font-family: monospace; }
+        .col-3 { width:20%; text-align:right; }
+        .error { color: red; text-align: center; padding:10px; }
     </style>
 </head>
 <body>
-<h1>Лидерборд grecha_duplo-2</h1>
-
+<h1>Лидерборд GRECHA по входящим переводам</h1>
 <div id="leaderboard">
     <div class="leaderboard-header">
-        <div class="leaderboard-header-item col-1">№</div>
-        <div class="leaderboard-header-item col-2">Кошелек</div>
-        <div class="leaderboard-header-item col-3">Сумма</div>
+        <div class="col-1">№</div>
+        <div class="col-2">Кошелек</div>
+        <div class="col-3">Сумма</div>
     </div>
-    <div class="leaderboard-items-wrapper">
-
-    </div>
+    <div id="items"></div>
 </div>
 
 <script>
-    // Точка прокси
-    const API_URL = '/api/grecha';
+    const API_PATH = '/api/grecha';
+    const SINCE_MS = new Date('2025-06-15T00:00').getTime();
+    const BATCH = 200;
 
-    // Жёстко заданная дата-время отсечения
-    // Формат строки: "YYYY-MM-DDTHH:mm"
-    // Изменяйте эту константу под нужный вам порог
-    const SINCE_DATETIME = '2025-03-01T00:00';
-    const SINCE_MS = new Date(SINCE_DATETIME).getTime();
-
-    // Timestamp последнего реального запроса (вначале — 0)
-    let lastFetch = 0;
-    // Минимальный интервал между запросами — 5 минут
-    const MIN_INTERVAL = 5 * 60 * 1000;
-
-    async function fetchAndRender() {
-        const now = Date.now();
-        // Если с прошлого удачного запроса прошло меньше MIN_INTERVAL — пропускаем
-        if (now - lastFetch < MIN_INTERVAL) {
-            console.log('Пропускаем fetch — слишком часто:', ((now - lastFetch)/1000).toFixed(1), 'с назад');
-            return;
+    // 1) Скачиваем все партии по 200, пока не вернётся «неполный» пакет
+    async function fetchAll() {
+        let all = [];
+        for (let skip = 0; ; skip += BATCH) {
+            const url = `${API_PATH}?limit=${BATCH}&skip=${skip}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`API ${resp.status}`);
+            const { transfers } = await resp.json();
+            if (!Array.isArray(transfers) || transfers.length === 0) break;
+            all.push(...transfers);
+            if (transfers.length < BATCH) break;
         }
-        lastFetch = now;  // фиксируем время перед реальным запросом
+        return all;
+    }
 
+    // 2) Фильтруем, агрегируем, рендерим
+    async function renderBoard() {
+        const container = document.getElementById('items');
+        container.innerHTML = '';
         try {
-            const resp = await fetch(API_URL);
-            const payload = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(payload.error || `Status ${resp.status}`);
-
-            let data = Array.isArray(payload.transfers) ? payload.transfers : [];
+            let data = await fetchAll();
+            // Оставляем только с нужной даты
             data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
 
             // Группируем и делим amount на 1000
             const sums = data.reduce((acc, tx) => {
-                const w   = tx.from;
                 const raw = parseFloat(tx.amount);
-                const amt = isNaN(raw) ? 0 : raw / 1000;
-                acc[w] = (acc[w] || 0) + amt;
+                const val = isNaN(raw) ? 0 : raw/1000;
+                acc[tx.from] = (acc[tx.from] || 0) + val;
                 return acc;
             }, {});
 
+            // Сортируем и выводим
             const sorted = Object.entries(sums)
                 .map(([wallet, total]) => ({ wallet, total }))
-                .sort((a, b) => b.total - a.total);
+                .sort((a,b) => b.total - a.total);
 
-            const tbody = document.querySelector('#leaderboard .leaderboard-items-wrapper');
-            tbody.innerHTML = '';
-            if (sorted.length) {
-                sorted.forEach((item, idx) => {
-                    const tr = document.createElement('div');
-                    tr.innerHTML = `
-            <div class="leaderboard-item col-1">${idx + 1}</div>
-            <div class="leaderboard-item col-2">${item.wallet}</div>
-            <div class="leaderboard-item col-3">${item.total.toLocaleString(undefined, {
-                        minimumFractionDigits: 3, maximumFractionDigits: 3
-                    })}</div>
-          `;
-                    tbody.appendChild(tr);
-                });
-            } else {
-                tbody.innerHTML = `
-          <div class="error">
-            Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
+            if (!sorted.length) {
+                container.innerHTML = `<div class="error">
+            Нет переводов после 2025-06-15 00:00
           </div>`;
+                return;
             }
 
+            sorted.forEach((item, i) => {
+                const row = document.createElement('div');
+                row.className = 'leaderboard-item';
+                row.innerHTML = `
+            <div class="col-1">${i+1}</div>
+            <div class="col-2">${item.wallet}</div>
+            <div class="col-3">
+              ${item.total.toLocaleString(undefined,{
+                    minimumFractionDigits:3,
+                    maximumFractionDigits:3
+                })}
+            </div>`;
+                container.appendChild(row);
+            });
+
         } catch (err) {
-            console.error('Client error:', err);
+            container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
+            console.error(err);
         }
     }
 
-    // Первоначальный запуск
-    window.addEventListener('DOMContentLoaded', () => {
-        fetchAndRender();
-        // Проверяем каждые 300 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
-        setInterval(fetchAndRender, 300 * 1000);
-    });
+    window.addEventListener('DOMContentLoaded', renderBoard);
 </script>
 </body>
 </html>

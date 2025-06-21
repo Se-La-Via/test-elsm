@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лидерборд grecha_duplo-2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            background-image: url('/public/background.jpg');
+            background-repeat: no-repeat;
+            background-position: top;
+            background-size: cover;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+        }
+        #leaderboard {
+            display: flex;
+            margin: 0 5px;
+            flex-direction: column;
+        }
+        .leaderboard-header {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+            position: sticky;
+            top: 0;
+            background: #bb37fc;
+        }
+        .leaderboard-header-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 2px 1px rgba(0, 0, 0, 0.75);
+            padding: 7px;
+            font-weight: 700;
+        }
+        .col-1 {
+            width: 10%;
+        }
+        .col-2 {
+            width: 70%;
+        }
+        .col-3 {
+            width: 20%;
+        }
+        .leaderboard-items-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
+        .leaderboard-items-wrapper > div {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: normal;
+            align-content: center;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.75);
+            padding: 7px;
+        }
+        .leaderboard-item.col-2 {
+            justify-content: flex-start;
+        }
+        .error {
+            color: red;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1>Лидерборд grecha_duplo-2</h1>
+
+<div id="leaderboard">
+    <div class="leaderboard-header">
+        <div class="leaderboard-header-item col-1">№</div>
+        <div class="leaderboard-header-item col-2">Кошелек</div>
+        <div class="leaderboard-header-item col-3">Сумма</div>
+    </div>
+    <div class="leaderboard-items-wrapper">
+        <div>
+            <div class="leaderboard-item col-1">1</div>
+            <div class="leaderboard-item col-2">yupland_bank.near</div>
+            <div class="leaderboard-item col-3">106,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">2</div>
+            <div class="leaderboard-item col-2">suharik.tg</div>
+            <div class="leaderboard-item col-3">67,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">3</div>
+            <div class="leaderboard-item col-2">uramandaa.tg</div>
+            <div class="leaderboard-item col-3">66,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">4</div>
+            <div class="leaderboard-item col-2">kolibry8.tg</div>
+            <div class="leaderboard-item col-3">65,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">5</div>
+            <div class="leaderboard-item col-2">zefirinochka.tg</div>
+            <div class="leaderboard-item col-3">63,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">6</div>
+            <div class="leaderboard-item col-2">316598826.tg</div>
+            <div class="leaderboard-item col-3">63,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">7</div>
+            <div class="leaderboard-item col-2">romann0711.tg</div>
+            <div class="leaderboard-item col-3">52,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">8</div>
+            <div class="leaderboard-item col-2">evgeniy_181987.tg</div>
+            <div class="leaderboard-item col-3">52,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">9</div>
+            <div class="leaderboard-item col-2">evgeniyamal.tg</div>
+            <div class="leaderboard-item col-3">43,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">10</div>
+            <div class="leaderboard-item col-2">lexx76rus.tg</div>
+            <div class="leaderboard-item col-3">41,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">11</div>
+            <div class="leaderboard-item col-2">azotq.tg</div>
+            <div class="leaderboard-item col-3">41,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">12</div>
+            <div class="leaderboard-item col-2">tsarstvo999.tg</div>
+            <div class="leaderboard-item col-3">37,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">13</div>
+            <div class="leaderboard-item col-2">slobos85.tg</div>
+            <div class="leaderboard-item col-3">37,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">14</div>
+            <div class="leaderboard-item col-2">mish1989.tg</div>
+            <div class="leaderboard-item col-3">33,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">15</div>
+            <div class="leaderboard-item col-2">lilia_rosa.tg</div>
+            <div class="leaderboard-item col-3">32,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">16</div>
+            <div class="leaderboard-item col-2">kabansikach.tg</div>
+            <div class="leaderboard-item col-3">30,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">17</div>
+            <div class="leaderboard-item col-2">bohdankasianchuk.tg</div>
+            <div class="leaderboard-item col-3">30,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">18</div>
+            <div class="leaderboard-item col-2">alexn_450.tg</div>
+            <div class="leaderboard-item col-3">26,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">19</div>
+            <div class="leaderboard-item col-2">etgua.tg</div>
+            <div class="leaderboard-item col-3">26,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">20</div>
+            <div class="leaderboard-item col-2">vengerliliya.tg</div>
+            <div class="leaderboard-item col-3">26,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">21</div>
+            <div class="leaderboard-item col-2">zlvert.tg</div>
+            <div class="leaderboard-item col-3">22,001</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">22</div>
+            <div class="leaderboard-item col-2">arc_yy2.tg</div>
+            <div class="leaderboard-item col-3">22,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">23</div>
+            <div class="leaderboard-item col-2">flexfishy.tg</div>
+            <div class="leaderboard-item col-3">19,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">24</div>
+            <div class="leaderboard-item col-2">noveriya.near</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">25</div>
+            <div class="leaderboard-item col-2">lilimitrofanovaa.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">26</div>
+            <div class="leaderboard-item col-2">well076.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">27</div>
+            <div class="leaderboard-item col-2">7902939747.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">28</div>
+            <div class="leaderboard-item col-2">progrech.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">29</div>
+            <div class="leaderboard-item col-2">1942327598.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">30</div>
+            <div class="leaderboard-item col-2">koresh3005.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">31</div>
+            <div class="leaderboard-item col-2">sergey_t10.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">32</div>
+            <div class="leaderboard-item col-2">kvazarus13.tg</div>
+            <div class="leaderboard-item col-3">17,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">33</div>
+            <div class="leaderboard-item col-2">n_stasyaaa.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">34</div>
+            <div class="leaderboard-item col-2">donred97.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">35</div>
+            <div class="leaderboard-item col-2">se_la_via.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">36</div>
+            <div class="leaderboard-item col-2">anna_kill_bill.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">37</div>
+            <div class="leaderboard-item col-2">bienmente.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">38</div>
+            <div class="leaderboard-item col-2">akuka85.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">39</div>
+            <div class="leaderboard-item col-2">1633968038.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">40</div>
+            <div class="leaderboard-item col-2">paha_pashtet.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">41</div>
+            <div class="leaderboard-item col-2">exenion.tg</div>
+            <div class="leaderboard-item col-3">15,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">42</div>
+            <div class="leaderboard-item col-2">olegdelon.near</div>
+            <div class="leaderboard-item col-3">13,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">43</div>
+            <div class="leaderboard-item col-2">v_zelenko.tg</div>
+            <div class="leaderboard-item col-3">13,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">44</div>
+            <div class="leaderboard-item col-2">roman_prof_vlp.tg</div>
+            <div class="leaderboard-item col-3">13,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">45</div>
+            <div class="leaderboard-item col-2">yar_9966.tg</div>
+            <div class="leaderboard-item col-3">11,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">46</div>
+            <div class="leaderboard-item col-2">george_kolganov.tg</div>
+            <div class="leaderboard-item col-3">11,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">47</div>
+            <div class="leaderboard-item col-2">andrey8802.tg</div>
+            <div class="leaderboard-item col-3">11,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">48</div>
+            <div class="leaderboard-item col-2">abibass.tg</div>
+            <div class="leaderboard-item col-3">11,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">49</div>
+            <div class="leaderboard-item col-2">mikewazowski90.tg</div>
+            <div class="leaderboard-item col-3">10,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">50</div>
+            <div class="leaderboard-item col-2">ixpycti.tg</div>
+            <div class="leaderboard-item col-3">10,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">51</div>
+            <div class="leaderboard-item col-2">oleg1207.tg</div>
+            <div class="leaderboard-item col-3">6,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">52</div>
+            <div class="leaderboard-item col-2">i5390418296.tg</div>
+            <div class="leaderboard-item col-3">4,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">53</div>
+            <div class="leaderboard-item col-2">advols.tg</div>
+            <div class="leaderboard-item col-3">4,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">54</div>
+            <div class="leaderboard-item col-2">masksuka.tg</div>
+            <div class="leaderboard-item col-3">4,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">55</div>
+            <div class="leaderboard-item col-2">sweetkittymalvinkaxxs.tg</div>
+            <div class="leaderboard-item col-3">4,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">56</div>
+            <div class="leaderboard-item col-2">lomantinrus.tg</div>
+            <div class="leaderboard-item col-3">4,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">57</div>
+            <div class="leaderboard-item col-2">mariia_malii.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">58</div>
+            <div class="leaderboard-item col-2">vitlik87.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">59</div>
+            <div class="leaderboard-item col-2">andreu2garin.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">60</div>
+            <div class="leaderboard-item col-2">steilmagnus.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">61</div>
+            <div class="leaderboard-item col-2">tiger3709.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">62</div>
+            <div class="leaderboard-item col-2">warmxml8140.near</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">63</div>
+            <div class="leaderboard-item col-2">s6aek3r.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+        <div>
+            <div class="leaderboard-item col-1">64</div>
+            <div class="leaderboard-item col-2">kernor94.tg</div>
+            <div class="leaderboard-item col-3">2,000</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Точка прокси
+    const API_URL = '/api/grecha';
+
+    // Жёстко заданная дата-время отсечения
+    // Формат строки: "YYYY-MM-DDTHH:mm"
+    // Изменяйте эту константу под нужный вам порог
+    const SINCE_DATETIME = '2025-05-08T00:00';
+    const SINCE_MS = new Date(SINCE_DATETIME).getTime();
+
+    // Timestamp последнего реального запроса (вначале — 0)
+    let lastFetch = 0;
+    // Минимальный интервал между запросами — 5 минут
+    const MIN_INTERVAL = 5 * 60 * 1000;
+
+    async function fetchAndRender() {
+        const now = Date.now();
+        // Если с прошлого удачного запроса прошло меньше MIN_INTERVAL — пропускаем
+        if (now - lastFetch < MIN_INTERVAL) {
+            console.log('Пропускаем fetch — слишком часто:', ((now - lastFetch)/1000).toFixed(1), 'с назад');
+            return;
+        }
+        lastFetch = now;  // фиксируем время перед реальным запросом
+
+        try {
+            const resp = await fetch(API_URL);
+            const payload = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(payload.error || `Status ${resp.status}`);
+
+            let data = Array.isArray(payload.transfers) ? payload.transfers : [];
+            data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
+
+            // Группируем и делим amount на 1000
+            const sums = data.reduce((acc, tx) => {
+                const w   = tx.from;
+                const raw = parseFloat(tx.amount);
+                const amt = isNaN(raw) ? 0 : raw / 1000;
+                acc[w] = (acc[w] || 0) + amt;
+                return acc;
+            }, {});
+
+            const sorted = Object.entries(sums)
+                .map(([wallet, total]) => ({ wallet, total }))
+                .sort((a, b) => b.total - a.total);
+
+            const tbody = document.querySelector('#leaderboard .leaderboard-items-wrapper');
+            tbody.innerHTML = '';
+            if (sorted.length) {
+                sorted.forEach((item, idx) => {
+                    const tr = document.createElement('div');
+                    tr.innerHTML = `
+            <div class="leaderboard-item col-1">${idx + 1}</div>
+            <div class="leaderboard-item col-2">${item.wallet}</div>
+            <div class="leaderboard-item col-3">${item.total.toLocaleString(undefined, {
+                        minimumFractionDigits: 3, maximumFractionDigits: 3
+                    })}</div>
+          `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = `
+          <tr><td colspan="3" class="error">
+            Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
+          </td></tr>`;
+            }
+
+        } catch (err) {
+            console.error('Client error:', err);
+        }
+    }
+
+    // Первоначальный запуск
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchAndRender();
+        // Проверяем каждые 60 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
+        setInterval(fetchAndRender, 60 * 1000);
+    });
+</script>
+</body>
+</html>
