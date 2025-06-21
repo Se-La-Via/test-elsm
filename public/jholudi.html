@@ -125,7 +125,7 @@
 
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
-            Нет переводов после 2025-06-15 00:00
+            Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
           </div>`;
                 return;
             }
