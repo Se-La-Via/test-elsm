@@ -6,17 +6,15 @@ const DEFAULT_LIMIT = 100;
 const DEFAULT_SKIP  = 0;
 
 export default async function handler(req, res) {
-    // 1) Читаем из query параметры (если не заданы, используем дефолты)
+    // Read parameters from query (if not set, use defaults)
     const limit = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip  = Number(req.query.skip)  || DEFAULT_SKIP;
 
     // 2) Формируем URL к upstream с параметрами
     const upstreamUrl = new URL(BASE_URL);
-    // upstreamUrl.searchParams.set('wallet_id', 'oao_north.near');
-    upstreamUrl.searchParams.set('wallet_id', 'darai_fane.near');
+    upstreamUrl.searchParams.set('wallet_id', 'oao_north.near');
     upstreamUrl.searchParams.set('direction', 'in');
-    // upstreamUrl.searchParams.set('symbol', 'GRECHA');
-    upstreamUrl.searchParams.set('symbol', 'JHOLUDI');
+    upstreamUrl.searchParams.set('symbol', 'GRECHA');
     upstreamUrl.searchParams.set('limit',  limit);
     upstreamUrl.searchParams.set('skip',   skip);
 
