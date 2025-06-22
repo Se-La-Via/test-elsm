@@ -137,7 +137,7 @@
             // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
                 const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/1000;
+                const val = isNaN(raw) ? 0 : raw/100000;
                 acc[tx.from] = (acc[tx.from] || 0) + val;
                 return acc;
             }, {});
