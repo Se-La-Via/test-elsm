@@ -88,7 +88,7 @@
         { symbol: 'YUM', coeff: 1.0 },
         // { symbol: 'ONE_MORE', coeff: 0.1 },
     ];
-    const SINCE_DATETIME = '2025-06-19T00:00';
+    const SINCE_DATETIME = '2025-06-18T00:00';
     const UNTIL_DATETIME = '2025-06-23T23:59';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
     const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
@@ -142,7 +142,7 @@
                         from: tx.from,
                         amount: (parseFloat(tx.amount) || 0) / 1000  // делим на 1000
                     }))
-                    .filter(tx => {
+                    data.filter(tx => {
                         const txMs = Number(tx.timestamp_nanosec) / 1e6;
                         return txMs >= SINCE_MS && txMs <= UNTIL_MS;
                     })
