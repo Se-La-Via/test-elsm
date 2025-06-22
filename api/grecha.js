@@ -16,9 +16,9 @@ export default async function handler(req, res) {
 
     // 2) Формируем URL к upstream с параметрами
     const upstreamUrl = new URL(BASE_URL);
-    upstreamUrl.searchParams.set('wallet_id', 'oao_north.near');
+    upstreamUrl.searchParams.set('wallet_id', wallet);
     upstreamUrl.searchParams.set('direction', 'in');
-    upstreamUrl.searchParams.set('symbol', 'GRECHA');
+    upstreamUrl.searchParams.set('symbol', symbol);
     upstreamUrl.searchParams.set('limit',  limit);
     upstreamUrl.searchParams.set('skip',   skip);
 
