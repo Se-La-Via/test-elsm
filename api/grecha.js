@@ -9,8 +9,8 @@ const DEFAULT_SKIP  = 0;
 
 export default async function handler(req, res) {
     // Read parameters from query (if not set, use defaults)
-    const wallet = Number(req.query.wallet_id) || DEFAULT_WALLET;
-    const coin  = Number(req.query.symbol)  || DEFAULT_SYMBOL;
+    const wallet = Number(req.query.wallet) || DEFAULT_WALLET;
+    const coin  = Number(req.query.coin)  || DEFAULT_SYMBOL;
     const limit = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip  = Number(req.query.skip)  || DEFAULT_SKIP;
 

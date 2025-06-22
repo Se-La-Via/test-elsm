@@ -99,7 +99,7 @@
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
-            const url = `${API_PATH}?wallet_id=${WALLET}&symbol=${SYMBOL}&limit=${BATCH}&skip=${skip}`;
+            const url = `${API_PATH}?wallet=${WALLET}&coin=${SYMBOL}&limit=${BATCH}&skip=${skip}`;
             const resp = await fetch(url);
             if (!resp.ok) throw new Error(`API ${resp.status}`);
             const { transfers } = await resp.json();
