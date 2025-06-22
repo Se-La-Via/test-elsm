@@ -84,7 +84,11 @@
 <script>
     const API_PATH = '/api/grecha';
     const WALLET_ID = 'alexmedisson.tg';
-    const SYMBOL    = 'YUM';
+    const COINS    = [
+        { symbol: 'YUM', coeff: 1.0 },
+        { symbol: 'OTHERCOIN', coeff: 2.5 },
+        // { symbol: 'ONE_MORE', coeff: 0.1 },
+    ];
     const SINCE_DATETIME = '2025-06-19T00:00';
     const UNTIL_DATETIME = '2025-06-22T23:59';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
@@ -95,13 +99,14 @@
     // Time of the last real request
     let lastFetchTime = 0;
 
-    // Download all batches of 200 until an “incomplete” batch is returned
-    async function fetchAll() {
-        let all = [];
+    // Функция стягивает все переводы для одной монеты
+    async function fetchAllFor(symbol) {
+        const all = [];
         for (let skip = 0; ; skip += BATCH) {
             const url = `${API_PATH}`
                 + `?wallet_id=${encodeURIComponent(WALLET_ID)}`
-                + `&symbol=${encodeURIComponent(SYMBOL)}`
+                + `&symbol=${encodeURIComponent(symbol)}`
+                + `&direction=in`
                 + `&limit=${BATCH}`
                 + `&skip=${skip}`;
             const resp = await fetch(url);
@@ -127,28 +132,34 @@
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
-            let data = await fetchAll();
-            // Filtering by two time limits
-            data = data.filter(tx => {
-                const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                return txMs >= SINCE_MS && txMs <= UNTIL_MS;
-            });
+            // Собираем общий маппинг: wallet → сумма
+            const globalSums = {};
 
-            // Group and divide by 1000
-            const sums = data.reduce((acc, tx) => {
-                const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/100000;
-                acc[tx.from] = (acc[tx.from] || 0) + val;
-                return acc;
-            }, {});
+            for (const { symbol, coeff } of COINS) {
+                const data = await fetchAllFor(symbol);
+                // Фильтруем по дате и аккумулируем
+                data
+                    .map(tx => ({
+                        from: tx.from,
+                        amount: (parseFloat(tx.amount) || 0) / 1000  // делим на 1000
+                    }))
+                    .filter(tx => {
+                        const ms = Number(tx.timestamp_nanosec || 0) / 1e6;
+                        return ms >= SINCE_MS && ms <= UNTIL_MS;
+                    })
+                    .forEach(tx => {
+                        const val = tx.amount * coeff;
+                        globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
+                    });
+            }
 
-            // Sort and output
-            const sorted = Object.entries(sums)
+            // Собираем в массив и сортируем
+            const sorted = Object.entries(globalSums)
                 .map(([wallet, total]) => ({ wallet, total }))
-                .sort((a,b) => b.total - a.total);
+                .sort((a, b) => b.total - a.total);
 
             if (!sorted.length) {
-                container.innerHTML = `<div class="error">
+                tbody.innerHTML = `<div class="error">
               Нет переводов в период<br>
               ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
             </div>`;
