@@ -85,8 +85,12 @@
     const API_PATH = '/api/grecha';
     const SINCE_MS = new Date('2025-04-27T00:00').getTime();
     const BATCH = 200;
+    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
-    // 1) Download all batches of 200 until an “incomplete” batch is returned
+    // Time of the last real request
+    let lastFetchTime = 0;
+
+    // Download all batches of 200 until an “incomplete” batch is returned
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -101,8 +105,16 @@
         return all;
     }
 
-    // 2) Filtering, aggregating, rendering
+    // Renders the leaderboard, but actually requests the API no more often than 1×/5min
     async function renderBoard() {
+        const now = Date.now();
+        // If less than MIN_INTERVAL has elapsed since the last fetch - exit
+        if (now - lastFetchTime < MIN_INTERVAL) {
+            console.log(`Пропускаем запрос: прошло ${(now - lastFetchTime)/1000 | 0}s`);
+            return;
+        }
+        lastFetchTime = now;
+
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
