@@ -159,7 +159,7 @@
                 .sort((a, b) => b.total - a.total);
 
             if (!sorted.length) {
-                tbody.innerHTML = `<div class="error">
+                container.innerHTML = `<div class="error">
               Нет переводов в период<br>
               ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
             </div>`;
