@@ -84,7 +84,7 @@
 <script>
     const API_PATH = '/api/grecha';
     const WALLET_ID = 'alexmedisson.tg';
-    const SYMBOL    = 'GRECHA';
+    const SYMBOL    = 'YUM';
     const SINCE_DATETIME = '2025-06-19T00:00';
     const UNTIL_DATETIME = '2025-06-22T23:59';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
@@ -137,7 +137,7 @@
             // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
                 const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/1000;
+                const val = isNaN(raw) ? 0 : raw/100000;
                 acc[tx.from] = (acc[tx.from] || 0) + val;
                 return acc;
             }, {});
