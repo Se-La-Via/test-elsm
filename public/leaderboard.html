@@ -83,6 +83,8 @@
 
 <script>
     const API_PATH = '/api/grecha';
+    const WALLET_ID = 'oao_north.near';
+    const SYMBOL    = 'GRECHA';
     const SINCE_DATETIME = '2025-04-27T00:00';
     const UNTIL_DATETIME = '2025-06-22T23:59';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
@@ -97,7 +99,11 @@
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
-            const url = `${API_PATH}?limit=${BATCH}&skip=${skip}`;
+            const url = `${API_PATH}`
+                + `?wallet_id=${encodeURIComponent(WALLET_ID)}`
+                + `&symbol=${encodeURIComponent(SYMBOL)}`
+                + `&limit=${BATCH}`
+                + `&skip=${skip}`;
             const resp = await fetch(url);
             if (!resp.ok) throw new Error(`API ${resp.status}`);
             const { transfers } = await resp.json();
