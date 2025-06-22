@@ -2,181 +2,175 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лидерборд grecha_duplo</title>
+    <title>LUDO-GRECHA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 600px;
             margin: 40px auto;
-            background-image: url('/public/background.jpg');
-            background-repeat: no-repeat;
-            background-position: top;
-            background-size: cover;
-            min-height: 100vh;
+            background-image: url("/public/bg1.jpg");
+            background-attachment: fixed;
+            background-position: center;
         }
         h1 {
             text-align: center;
+            color: ivory;
+            text-shadow: 4px 4px 5px #9541AC;
         }
+
         #leaderboard {
             display: flex;
-            margin: 0 5px;
             flex-direction: column;
+            margin: 0 5px;
+            background: rgb(120 103 197 / 80%);
+        }
+
+        .leaderboard-header, .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 7px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.3);
         }
         .leaderboard-header {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            align-items: normal;
-            align-content: center;
             position: sticky;
-            top: 0;
+            top:0;
             background: #bb37fc;
+            font-weight:700;
+            font-size: 18px;
         }
-        .leaderboard-header-item {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 2px 1px rgba(0, 0, 0, 0.75);
-            padding: 7px;
-            font-weight: 700;
-        }
+
         .col-1 {
-            width: 10%;
+            width:10%;
         }
         .col-2 {
-            width: 70%;
+            width:70%;
+            text-align: left;
+            font-family: monospace;
         }
         .col-3 {
-            width: 20%;
+            width:20%;
+            text-align:right;
         }
-        .leaderboard-items-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            align-items: normal;
-            align-content: center;
+
+        .leaderboard-item .col-1, .leaderboard-item .col-3 {
+            font-size: 17px;
         }
-        .leaderboard-items-wrapper > div {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            align-items: normal;
-            align-content: center;
+        .leaderboard-item .col-2 {
+            font-weight: 700;
+            font-size: 16px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .leaderboard-item {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.75);
-            padding: 7px;
-        }
-        .leaderboard-item.col-2 {
-            justify-content: flex-start;
-        }
+
         .error {
-            color: red;
+            color: ivory;
             text-align: center;
-            justify-content: center !important;
-            border: 1px solid red;
-            padding: 10px;
+            padding:10px;
         }
     </style>
 </head>
 <body>
-<h1>Лидерборд grecha_duplo</h1>
-
+<h1>LUDO-GRECHA - лидерборд</h1>
 <div id="leaderboard">
     <div class="leaderboard-header">
-        <div class="leaderboard-header-item col-1">№</div>
-        <div class="leaderboard-header-item col-2">Кошелек</div>
-        <div class="leaderboard-header-item col-3">Сумма</div>
+        <div class="col-1">№</div>
+        <div class="col-2">Кошелек</div>
+        <div class="col-3">Сумма</div>
     </div>
-    <div class="leaderboard-items-wrapper">
-
-    </div>
+    <div id="items"></div>
 </div>
 
 <script>
-    // Точка прокси
-    const API_URL = '/api/grecha';
+    const API_PATH = '/api/grecha';
+    const SINCE_DATETIME = '2025-04-27T00:00';
+    const UNTIL_DATETIME = '2025-06-22T23:59';
+    const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
+    const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
+    const BATCH = 200;
+    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
-    // Жёстко заданная дата-время отсечения
-    // Формат строки: "YYYY-MM-DDTHH:mm"
-    // Изменяйте эту константу под нужный вам порог
-    const SINCE_DATETIME = '2025-06-19T00:00';
-    const SINCE_MS = new Date(SINCE_DATETIME).getTime();
+    // Time of the last real request
+    let lastFetchTime = 0;
 
-    // Timestamp последнего реального запроса (вначале — 0)
-    let lastFetch = 0;
-    // Минимальный интервал между запросами — 5 минут
-    const MIN_INTERVAL = 5 * 60 * 1000;
+    // Download all batches of 200 until an “incomplete” batch is returned
+    async function fetchAll() {
+        let all = [];
+        for (let skip = 0; ; skip += BATCH) {
+            const url = `${API_PATH}?limit=${BATCH}&skip=${skip}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`API ${resp.status}`);
+            const { transfers } = await resp.json();
+            if (!Array.isArray(transfers) || transfers.length === 0) break;
+            all.push(...transfers);
+            if (transfers.length < BATCH) break;
+        }
+        return all;
+    }
 
-    async function fetchAndRender() {
+    // Renders the leaderboard, but actually requests the API no more often than 1×/5min
+    async function renderBoard() {
         const now = Date.now();
-        // Если с прошлого удачного запроса прошло меньше MIN_INTERVAL — пропускаем
-        if (now - lastFetch < MIN_INTERVAL) {
-            console.log('Пропускаем fetch — слишком часто:', ((now - lastFetch)/1000).toFixed(1), 'с назад');
+        // If less than MIN_INTERVAL has elapsed since the last fetch - exit
+        if (now - lastFetchTime < MIN_INTERVAL) {
+            console.log(`Пропускаем запрос: прошло ${(now - lastFetchTime)/1000 | 0}s`);
             return;
         }
-        lastFetch = now;  // фиксируем время перед реальным запросом
+        lastFetchTime = now;
 
+        const container = document.getElementById('items');
+        container.innerHTML = '';
         try {
-            const resp = await fetch(API_URL);
-            const payload = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(payload.error || `Status ${resp.status}`);
+            let data = await fetchAll();
+            // Filtering by two time limits
+            data = data.filter(tx => {
+                const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+            });
 
-            let data = Array.isArray(payload.transfers) ? payload.transfers : [];
-            data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
-
-            // Группируем и делим amount на 1000
+            // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
-                const w   = tx.from;
                 const raw = parseFloat(tx.amount);
-                const amt = isNaN(raw) ? 0 : raw / 1000;
-                acc[w] = (acc[w] || 0) + amt;
+                const val = isNaN(raw) ? 0 : raw/1000;
+                acc[tx.from] = (acc[tx.from] || 0) + val;
                 return acc;
             }, {});
 
+            // Sort and output
             const sorted = Object.entries(sums)
                 .map(([wallet, total]) => ({ wallet, total }))
-                .sort((a, b) => b.total - a.total);
+                .sort((a,b) => b.total - a.total);
 
-            const tbody = document.querySelector('#leaderboard .leaderboard-items-wrapper');
-            tbody.innerHTML = '';
-            if (sorted.length) {
-                sorted.forEach((item, idx) => {
-                    const tr = document.createElement('div');
-                    tr.innerHTML = `
-            <div class="leaderboard-item col-1">${idx + 1}</div>
-            <div class="leaderboard-item col-2">${item.wallet}</div>
-            <div class="leaderboard-item col-3">${item.total.toLocaleString(undefined, {
-                        minimumFractionDigits: 3, maximumFractionDigits: 3
-                    })}</div>
-          `;
-                    tbody.appendChild(tr);
-                });
-            } else {
-                tbody.innerHTML = `
-          <div class="error">
-            Нет переводов после ${SINCE_DATETIME.replace('T',' ')}
-          </div>`;
+            if (!sorted.length) {
+                container.innerHTML = `<div class="error">
+              Нет переводов в период<br>
+              ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
+            </div>`;
+                return;
             }
 
+            sorted.forEach((item, i) => {
+                const row = document.createElement('div');
+                row.className = 'leaderboard-item';
+                row.innerHTML = `
+            <div class="col-1">${i+1}</div>
+            <div class="col-2">${item.wallet}</div>
+            <div class="col-3">
+              ${item.total.toLocaleString(undefined,{
+                    minimumFractionDigits:3,
+                    maximumFractionDigits:3
+                })}
+            </div>`;
+                container.appendChild(row);
+            });
+
         } catch (err) {
-            console.error('Client error:', err);
+            container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
+            console.error(err);
         }
     }
 
-    // Первоначальный запуск
-    window.addEventListener('DOMContentLoaded', () => {
-        fetchAndRender();
-        // Проверяем каждые 300 секунд, но fetch при этом реально пойдёт не чаще, чем 1×/5мин
-        setInterval(fetchAndRender, 300 * 1000);
-    });
+    window.addEventListener('DOMContentLoaded', renderBoard);
 </script>
 </body>
 </html>
