@@ -143,8 +143,8 @@
                         amount: (parseFloat(tx.amount) || 0) / 1000  // делим на 1000
                     }))
                     .filter(tx => {
-                        const ms = Number(tx.timestamp_nanosec || 0) / 1e6;
-                        return ms >= SINCE_MS && ms <= UNTIL_MS;
+                        const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                        return txMs >= SINCE_MS && txMs <= UNTIL_MS;
                     })
                     .forEach(tx => {
                         const val = tx.amount * coeff;
