@@ -83,12 +83,12 @@
 
 <script>
     const API_PATH = '/api/grecha';
+    const WALLET_ID = 'darai_fane.near';
+    const SYMBOL    = 'JHOLUDI';
     const SINCE_DATETIME = '2025-06-20T00:00';
     const UNTIL_DATETIME = '2025-06-22T23:59';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
     const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
-    const WALLET = 'darai_fane.near';
-    const SYMBOL = 'JHOLUDI';
     const BATCH = 200;
     const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
@@ -99,7 +99,11 @@
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
-            const url = `${API_PATH}?wallet=${WALLET}&coin=${SYMBOL}&limit=${BATCH}&skip=${skip}`;
+            const url = `${API_PATH}`
+                + `?wallet_id=${encodeURIComponent(WALLET_ID)}`
+                + `&symbol=${encodeURIComponent(SYMBOL)}`
+                + `&limit=${BATCH}`
+                + `&skip=${skip}`;
             const resp = await fetch(url);
             if (!resp.ok) throw new Error(`API ${resp.status}`);
             const { transfers } = await resp.json();
