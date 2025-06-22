@@ -138,7 +138,7 @@
                 const data = await fetchAllFor(symbol);
                 // Фильтруем по дате и аккумулируем
                 data
-                    .map(tx => ({
+                    data.map(tx => ({
                         from: tx.from,
                         amount: (parseFloat(tx.amount) || 0) / 100000  // делим на 1000
                     }))
