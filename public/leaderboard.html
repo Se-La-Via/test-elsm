@@ -83,7 +83,10 @@
 
 <script>
     const API_PATH = '/api/grecha';
-    const SINCE_MS = new Date('2025-04-27T00:00').getTime();
+    const SINCE_DATETIME = '2025-06-15T00:00';
+    const UNTIL_DATETIME = '2025-06-20T23:59';
+    const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
+    const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
     const BATCH = 200;
     const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
@@ -119,8 +122,11 @@
         container.innerHTML = '';
         try {
             let data = await fetchAll();
-            // Leave only from the desired date
-            data = data.filter(tx => Number(tx.timestamp_nanosec)/1e6 >= SINCE_MS);
+            // Filtering by two time limits
+            data = data.filter(tx => {
+                const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+            });
 
             // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
@@ -137,8 +143,9 @@
 
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
-            Нет переводов после ${SINCE_MS.replace('T',' ')}
-          </div>`;
+              Нет переводов в период<br>
+              ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
+            </div>`;
                 return;
             }
 
