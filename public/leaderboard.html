@@ -98,7 +98,7 @@
     // Time of the last real request
     let lastFetchTime = 0;
 
-    // Функция стягивает все переводы для одной монеты
+    // The function pulls down all transfers for one symbol
     async function fetchAllFor(symbol) {
         const all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -131,17 +131,13 @@
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
-            // Собираем общий маппинг: wallet → сумма
+            // Collecting the total mapping: wallet → amount
             const globalSums = {};
 
             for (const { symbol, coeff } of COINS) {
                 const data = await fetchAllFor(symbol);
-                // Фильтруем по дате и аккумулируем
+                // Filter by date and accumulate
                 data
-                    data.map(tx => ({
-                        from: tx.from,
-                        amount: (parseFloat(tx.amount) || 0) / 1000  // делим на 1000
-                    }))
                     data.filter(tx => {
                         const txMs = Number(tx.timestamp_nanosec) / 1e6;
                         return txMs >= SINCE_MS && txMs <= UNTIL_MS;
@@ -152,7 +148,7 @@
                     });
             }
 
-            // Собираем в массив и сортируем
+            // Arrayed and sorted
             const sorted = Object.entries(globalSums)
                 .map(([wallet, total]) => ({ wallet, total }))
                 .sort((a, b) => b.total - a.total);
