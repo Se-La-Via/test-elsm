@@ -113,7 +113,7 @@
             // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
                 const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/1000;
+                const val = isNaN(raw) ? 0 : raw/1;
                 acc[tx.from] = (acc[tx.from] || 0) + val;
                 return acc;
             }, {});
@@ -138,8 +138,8 @@
             <div class="col-2">${item.wallet}</div>
             <div class="col-3">
               ${item.total.toLocaleString(undefined,{
-                    minimumFractionDigits:3,
-                    maximumFractionDigits:3
+                    minimumFractionDigits:0,
+                    maximumFractionDigits:0
                 })}
             </div>`;
                 container.appendChild(row);
