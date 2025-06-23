@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>LUDO-GRECHA</title>
+    <title>Гречемолка</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
@@ -71,7 +71,7 @@
     </style>
 </head>
 <body>
-<h1>LUDO-GRECHA - лидерборд</h1>
+<h1>Гречемолка - leaderboard</h1>
 <div id="leaderboard">
     <div class="leaderboard-header">
         <div class="col-1">№</div>
@@ -83,10 +83,13 @@
 
 <script>
     const API_PATH = '/api/grecha';
-    const WALLET_ID = 'oao_north.near';
-    const SYMBOL    = 'GRECHA';
-    const SINCE_DATETIME = '2025-04-27T00:00';
-    const UNTIL_DATETIME = '2025-06-22T23:59';
+    const WALLET_ID = 'grecha_duplo.near';
+    const COINS    = [
+        { symbol: 'YUM', coeff: 0.0000005 },
+        { symbol: 'GRECHA', coeff: 0.001 },
+    ];
+    const SINCE_DATETIME = '2025-06-23T12:00';
+    const UNTIL_DATETIME = '2025-06-29T22:00';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
     const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
     const BATCH = 200;
@@ -95,13 +98,14 @@
     // Time of the last real request
     let lastFetchTime = 0;
 
-    // Download all batches of 200 until an “incomplete” batch is returned
-    async function fetchAll() {
-        let all = [];
+    // The function pulls down all transfers for one symbol
+    async function fetchAllFor(symbol) {
+        const all = [];
         for (let skip = 0; ; skip += BATCH) {
             const url = `${API_PATH}`
                 + `?wallet_id=${encodeURIComponent(WALLET_ID)}`
-                + `&symbol=${encodeURIComponent(SYMBOL)}`
+                + `&symbol=${encodeURIComponent(symbol)}`
+                + `&direction=in`
                 + `&limit=${BATCH}`
                 + `&skip=${skip}`;
             const resp = await fetch(url);
@@ -127,25 +131,27 @@
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
-            let data = await fetchAll();
-            // Filtering by two time limits
-            data = data.filter(tx => {
-                const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                return txMs >= SINCE_MS && txMs <= UNTIL_MS;
-            });
+            // Collecting the total mapping: wallet → amount
+            const globalSums = {};
 
-            // Group and divide by 1000
-            const sums = data.reduce((acc, tx) => {
-                const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/1000;
-                acc[tx.from] = (acc[tx.from] || 0) + val;
-                return acc;
-            }, {});
+            for (const { symbol, coeff } of COINS) {
+                const data = await fetchAllFor(symbol);
+                // Filter by date and accumulate
+                data
+                data.filter(tx => {
+                    const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                    return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+                })
+                    .forEach(tx => {
+                        const val = tx.amount * coeff;
+                        globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
+                    });
+            }
 
-            // Sort and output
-            const sorted = Object.entries(sums)
+            // Arrayed and sorted
+            const sorted = Object.entries(globalSums)
                 .map(([wallet, total]) => ({ wallet, total }))
-                .sort((a,b) => b.total - a.total);
+                .sort((a, b) => b.total - a.total);
 
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
