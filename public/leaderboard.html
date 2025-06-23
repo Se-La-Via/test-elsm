@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>LUDO-GRECHA</title>
+    <title>ГРЕЧЕМОЛКА 1.0</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
@@ -17,6 +17,14 @@
             text-align: center;
             color: ivory;
             text-shadow: 4px 4px 5px #9541AC;
+        }
+
+        #downloadCsv {
+            display: block;
+            margin: 20px auto;
+            padding: 8px 16px;
+            font-size: 16px;
+            cursor: pointer;
         }
 
         #leaderboard {
@@ -71,7 +79,9 @@
     </style>
 </head>
 <body>
-<h1>LUDO-GRECHA - лидерборд</h1>
+<h1>ГРЕЧЕМОЛКА 1.0 - leaderboard</h1>
+<button id="downloadCsv">Скачать CSV</button>
+
 <div id="leaderboard">
     <div class="leaderboard-header">
         <div class="col-1">№</div>
@@ -83,21 +93,31 @@
 
 <script>
     const API_PATH = '/api/grecha';
-    const SINCE_DATETIME = '2025-04-27T00:00';
-    const UNTIL_DATETIME = '2025-06-22T23:59';
+    const WALLET_ID = 'grecha_duplo.near';
+    const COINS    = [
+        { symbol: 'YUM', coeff: 0.0000005 },
+        { symbol: 'GRECHA', coeff: 0.001 },
+    ];
+    const SINCE_DATETIME = '2025-06-23T12:00';
+    const UNTIL_DATETIME = '2025-06-29T22:00';
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
     const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
     const BATCH = 200;
-    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
+    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 минут
 
-    // Time of the last real request
     let lastFetchTime = 0;
+    let lastSorted = [];
 
-    // Download all batches of 200 until an “incomplete” batch is returned
-    async function fetchAll() {
-        let all = [];
+    // Забирает все пачки переводов по symbol
+    async function fetchAllFor(symbol) {
+        const all = [];
         for (let skip = 0; ; skip += BATCH) {
-            const url = `${API_PATH}?limit=${BATCH}&skip=${skip}`;
+            const url = `${API_PATH}`
+                + `?wallet_id=${encodeURIComponent(WALLET_ID)}`
+                + `&symbol=${encodeURIComponent(symbol)}`
+                + `&direction=in`
+                + `&limit=${BATCH}`
+                + `&skip=${skip}`;
             const resp = await fetch(url);
             if (!resp.ok) throw new Error(`API ${resp.status}`);
             const { transfers } = await resp.json();
@@ -108,47 +128,50 @@
         return all;
     }
 
-    // Renders the leaderboard, but actually requests the API no more often than 1×/5min
-    async function renderBoard() {
+    // Собирает, фильтрует, группирует и возвращает отсортированный массив {wallet, total}
+    async function fetchData() {
         const now = Date.now();
-        // If less than MIN_INTERVAL has elapsed since the last fetch - exit
         if (now - lastFetchTime < MIN_INTERVAL) {
-            console.log(`Пропускаем запрос: прошло ${(now - lastFetchTime)/1000 | 0}s`);
-            return;
+            // Если слишком часто — сразу возвращаем прошлые данные
+            return lastSorted;
         }
         lastFetchTime = now;
 
+        const globalSums = {};
+        for (const { symbol, coeff } of COINS) {
+            const data = await fetchAllFor(symbol);
+            data
+                .filter(tx => {
+                    const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                    return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+                })
+                .forEach(tx => {
+                    const val = parseFloat(tx.amount) * coeff;
+                    globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
+                });
+        }
+
+        const sorted = Object.entries(globalSums)
+            .map(([wallet, total]) => ({ wallet, total }))
+            .sort((a, b) => b.total - a.total);
+
+        lastSorted = sorted;
+        return sorted;
+    }
+
+    // Рендерит дивы с результатами
+    async function renderBoard() {
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
-            let data = await fetchAll();
-            // Filtering by two time limits
-            data = data.filter(tx => {
-                const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                return txMs >= SINCE_MS && txMs <= UNTIL_MS;
-            });
-
-            // Group and divide by 1000
-            const sums = data.reduce((acc, tx) => {
-                const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/1000;
-                acc[tx.from] = (acc[tx.from] || 0) + val;
-                return acc;
-            }, {});
-
-            // Sort and output
-            const sorted = Object.entries(sums)
-                .map(([wallet, total]) => ({ wallet, total }))
-                .sort((a,b) => b.total - a.total);
-
+            const sorted = await fetchData();
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
-              Нет переводов в период<br>
-              ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
-            </div>`;
+            Нет переводов в период<br>
+            ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
+          </div>`;
                 return;
             }
-
             sorted.forEach((item, i) => {
                 const row = document.createElement('div');
                 row.className = 'leaderboard-item';
@@ -163,12 +186,40 @@
             </div>`;
                 container.appendChild(row);
             });
-
         } catch (err) {
             container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
             console.error(err);
         }
     }
+
+    // Генерирует CSV и инициирует его скачивание
+    async function downloadCsv() {
+        try {
+            const sorted = lastSorted.length ? lastSorted : await fetchData();
+            let csv = '№,Кошелек,Сумма\n';
+            csv += sorted
+                .map((item, idx) =>
+                    `${idx+1},${item.wallet},${item.total.toFixed(3)}`
+                )
+                .join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'leaderboard.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Ошибка при создании CSV: ' + err.message);
+            console.error(err);
+        }
+    }
+
+    document
+        .getElementById('downloadCsv')
+        .addEventListener('click', downloadCsv);
 
     window.addEventListener('DOMContentLoaded', renderBoard);
 </script>
