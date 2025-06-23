@@ -109,7 +109,7 @@
     let lastFetchTime = 0;
     let lastSorted = [];
 
-    // Забирает все пачки переводов по symbol
+    // Takes all the translation stacks by symbol.
     async function fetchAllFor(symbol) {
         const all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -129,11 +129,11 @@
         return all;
     }
 
-    // Собирает, фильтрует, группирует и возвращает отсортированный массив {wallet, total}
+    // Collects, filters, groups and returns a sorted array {wallet, total}
     async function fetchData() {
         const now = Date.now();
         if (now - lastFetchTime < MIN_INTERVAL) {
-            // Если слишком часто — сразу возвращаем прошлые данные
+            // If it is too frequent, we immediately revert to the past data
             return lastSorted;
         }
         lastFetchTime = now;
@@ -160,7 +160,7 @@
         return sorted;
     }
 
-    // Рендерит дивы с результатами
+    // Renders the results
     async function renderBoard() {
         const container = document.getElementById('items');
         container.innerHTML = '';
@@ -193,7 +193,7 @@
         }
     }
 
-    // Генерирует CSV и инициирует его скачивание
+    // Generates a CSV and initiates its download
     async function downloadCsv() {
         try {
             const sorted = lastSorted.length ? lastSorted : await fetchData();
