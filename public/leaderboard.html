@@ -103,12 +103,14 @@
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
     const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
     const BATCH = 200;
-    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 минут
+    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
+    // Time of the last real request
     let lastFetchTime = 0;
+
     let lastSorted = [];
 
-    // Забирает все пачки переводов по symbol
+    // The function pulls down all transfers for one symbol
     async function fetchAllFor(symbol) {
         const all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -128,50 +130,49 @@
         return all;
     }
 
-    // Собирает, фильтрует, группирует и возвращает отсортированный массив {wallet, total}
-    async function fetchData() {
+    // Renders the leaderboard, but actually requests the API no more often than 1×/5min
+    async function renderBoard() {
         const now = Date.now();
+        // If less than MIN_INTERVAL has elapsed since the last fetch - exit
         if (now - lastFetchTime < MIN_INTERVAL) {
-            // Если слишком часто — сразу возвращаем прошлые данные
-            return lastSorted;
+            console.log(`Пропускаем запрос: прошло ${(now - lastFetchTime)/1000 | 0}s`);
+            return;
         }
         lastFetchTime = now;
 
-        const globalSums = {};
-        for (const { symbol, coeff } of COINS) {
-            const data = await fetchAllFor(symbol);
-            data
-                .filter(tx => {
-                    const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                    return txMs >= SINCE_MS && txMs <= UNTIL_MS;
-                })
-                .forEach(tx => {
-                    const val = parseFloat(tx.amount) * coeff;
-                    globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
-                });
-        }
-
-        const sorted = Object.entries(globalSums)
-            .map(([wallet, total]) => ({ wallet, total }))
-            .sort((a, b) => b.total - a.total);
-
-        lastSorted = sorted;
-        return sorted;
-    }
-
-    // Рендерит дивы с результатами
-    async function renderBoard() {
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
-            const sorted = await fetchData();
+            // Collecting the total mapping: wallet → amount
+            const globalSums = {};
+
+            for (const { symbol, coeff } of COINS) {
+                const data = await fetchAllFor(symbol);
+                // Filter by date and accumulate
+                data
+                data.filter(tx => {
+                    const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                    return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+                })
+                    .forEach(tx => {
+                        const val = tx.amount * coeff;
+                        globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
+                    });
+            }
+
+            // Arrayed and sorted
+            const sorted = Object.entries(globalSums)
+                .map(([wallet, total]) => ({ wallet, total }))
+                .sort((a, b) => b.total - a.total);
+
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
-            Нет переводов в период<br>
-            ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
-          </div>`;
+              Нет переводов в период<br>
+              ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
+            </div>`;
                 return;
             }
+
             sorted.forEach((item, i) => {
                 const row = document.createElement('div');
                 row.className = 'leaderboard-item';
@@ -186,6 +187,7 @@
             </div>`;
                 container.appendChild(row);
             });
+
         } catch (err) {
             container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
             console.error(err);
