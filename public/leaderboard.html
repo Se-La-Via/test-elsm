@@ -195,33 +195,33 @@
     }
 
     // Генерирует CSV и инициирует его скачивание
-    async function downloadCsv() {
-        try {
-            const sorted = lastSorted.length ? lastSorted : await fetchData();
-            let csv = '№,Кошелек,Сумма\n';
-            csv += sorted
-                .map((item, idx) =>
-                    `${idx+1},${item.wallet},${item.total.toFixed(3)}`
-                )
-                .join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'leaderboard.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            alert('Ошибка при создании CSV: ' + err.message);
-            console.error(err);
-        }
-    }
-
-    document
-        .getElementById('downloadCsv')
-        .addEventListener('click', downloadCsv);
+    // async function downloadCsv() {
+    //     try {
+    //         const sorted = lastSorted.length ? lastSorted : await fetchData();
+    //         let csv = '№,Кошелек,Сумма\n';
+    //         csv += sorted
+    //             .map((item, idx) =>
+    //                 `${idx+1},${item.wallet},${item.total.toFixed(3)}`
+    //             )
+    //             .join('\n');
+    //         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    //         const url = URL.createObjectURL(blob);
+    //         const a = document.createElement('a');
+    //         a.href = url;
+    //         a.download = 'leaderboard.csv';
+    //         document.body.appendChild(a);
+    //         a.click();
+    //         document.body.removeChild(a);
+    //         URL.revokeObjectURL(url);
+    //     } catch (err) {
+    //         alert('Ошибка при создании CSV: ' + err.message);
+    //         console.error(err);
+    //     }
+    // }
+    //
+    // document
+    //     .getElementById('downloadCsv')
+    //     .addEventListener('click', downloadCsv);
 
     window.addEventListener('DOMContentLoaded', renderBoard);
 </script>
