@@ -19,14 +19,6 @@
             text-shadow: 4px 4px 5px #9541AC;
         }
 
-        #downloadCsv {
-            display: block;
-            margin: 20px auto;
-            padding: 8px 16px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
         #leaderboard {
             display: flex;
             flex-direction: column;
@@ -80,7 +72,6 @@
 </head>
 <body>
 <h1>ГРЕЧЕМОЛКА 1.0 - leaderboard</h1>
-
 <div id="leaderboard">
     <div class="leaderboard-header">
         <div class="col-1">№</div>
@@ -88,8 +79,6 @@
         <div class="col-3">Сумма</div>
     </div>
     <div id="items"></div>
-
-    <button id="downloadCsv">Скачать CSV</button>
 </div>
 
 <script>
@@ -104,12 +93,12 @@
     const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
     const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
     const BATCH = 200;
-    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 минут
+    const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
+    // Time of the last real request
     let lastFetchTime = 0;
-    let lastSorted = [];
 
-    // Takes all the translation stacks by symbol.
+    // The function pulls down all transfers for one symbol
     async function fetchAllFor(symbol) {
         const all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -129,50 +118,49 @@
         return all;
     }
 
-    // Collects, filters, groups and returns a sorted array {wallet, total}
-    async function fetchData() {
+    // Renders the leaderboard, but actually requests the API no more often than 1×/5min
+    async function renderBoard() {
         const now = Date.now();
+        // If less than MIN_INTERVAL has elapsed since the last fetch - exit
         if (now - lastFetchTime < MIN_INTERVAL) {
-            // If it is too frequent, we immediately revert to the past data
-            return lastSorted;
+            console.log(`Пропускаем запрос: прошло ${(now - lastFetchTime)/1000 | 0}s`);
+            return;
         }
         lastFetchTime = now;
 
-        const globalSums = {};
-        for (const { symbol, coeff } of COINS) {
-            const data = await fetchAllFor(symbol);
-            data
-                .filter(tx => {
-                    const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                    return txMs >= SINCE_MS && txMs <= UNTIL_MS;
-                })
-                .forEach(tx => {
-                    const val = parseFloat(tx.amount) * coeff;
-                    globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
-                });
-        }
-
-        const sorted = Object.entries(globalSums)
-            .map(([wallet, total]) => ({ wallet, total }))
-            .sort((a, b) => b.total - a.total);
-
-        lastSorted = sorted;
-        return sorted;
-    }
-
-    // Renders the results
-    async function renderBoard() {
         const container = document.getElementById('items');
         container.innerHTML = '';
         try {
-            const sorted = await fetchData();
+            // Collecting the total mapping: wallet → amount
+            const globalSums = {};
+
+            for (const { symbol, coeff } of COINS) {
+                const data = await fetchAllFor(symbol);
+                // Filter by date and accumulate
+                data
+                data.filter(tx => {
+                    const txMs = Number(tx.timestamp_nanosec) / 1e6;
+                    return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+                })
+                    .forEach(tx => {
+                        const val = tx.amount * coeff;
+                        globalSums[tx.from] = (globalSums[tx.from] || 0) + val;
+                    });
+            }
+
+            // Arrayed and sorted
+            const sorted = Object.entries(globalSums)
+                .map(([wallet, total]) => ({ wallet, total }))
+                .sort((a, b) => b.total - a.total);
+
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
-            Нет переводов в период<br>
-            ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
-          </div>`;
+              Нет переводов в период<br>
+              ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
+            </div>`;
                 return;
             }
+
             sorted.forEach((item, i) => {
                 const row = document.createElement('div');
                 row.className = 'leaderboard-item';
@@ -187,40 +175,12 @@
             </div>`;
                 container.appendChild(row);
             });
+
         } catch (err) {
             container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
             console.error(err);
         }
     }
-
-    // Generates a CSV and initiates its download
-    async function downloadCsv() {
-        try {
-            const sorted = lastSorted.length ? lastSorted : await fetchData();
-            let csv = '№,Кошелек,Сумма\n';
-            csv += sorted
-                .map((item, idx) =>
-                    `${idx+1},${item.wallet},${item.total.toFixed(3)}`
-                )
-                .join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'leaderboard.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            alert('Ошибка при создании CSV: ' + err.message);
-            console.error(err);
-        }
-    }
-
-    document
-        .getElementById('downloadCsv')
-        .addEventListener('click', downloadCsv);
 
     window.addEventListener('DOMContentLoaded', renderBoard);
 </script>
