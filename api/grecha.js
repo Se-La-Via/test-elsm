@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const limit    = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
-    // парсим optional период
+    // парсим период (ISO-строки)
     let startNano = null, endNano = null;
     if (req.query.start_time) {
         const d = Date.parse(req.query.start_time);
@@ -27,11 +27,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Скачиваем все трансферы по пагинации, фильтруем по method и периоду
+        // 1) Скачиваем все входящие NFT-трансферы с пагинацией, фильтруем лишь method='nft_transfer'
+        const allTransfers = [];
         let offset     = skip;
         let totalCount = Infinity;
-        const allTransfers = [];
-
         do {
             const url = new URL(TRANSFERS_URL);
             url.searchParams.set('wallet_id', walletId);
@@ -42,12 +41,10 @@ export default async function handler(req, res) {
             const resp = await fetch(url.toString());
             if (!resp.ok) break;
             const json = await resp.json();
+            if (typeof json.total === 'number') totalCount = json.total;
 
-            if (typeof json.total === 'number') {
-                totalCount = json.total;
-            }
             const batch = Array.isArray(json.nft_transfers) ? json.nft_transfers : [];
-            if (batch.length === 0) break;
+            if (!batch.length) break;
 
             batch.forEach(tx => {
                 if (tx.method !== 'nft_transfer') return;
@@ -70,15 +67,15 @@ export default async function handler(req, res) {
             const repJson = await repResp.json();
             const records = Array.isArray(repJson.nfts) ? repJson.nfts : [];
             records.forEach(item => {
-                if (item.title && typeof item.reputation === 'number') {
+                if (typeof item.title === 'string' && typeof item.reputation === 'number') {
                     repMap[item.title.trim().toLowerCase()] = item.reputation;
                 }
             });
         } else {
-            console.warn(`Unique-reputation API ${repResp.status}`);
+            console.warn(`Unique-reputation API returned ${repResp.status}, skipping reputations`);
         }
 
-        // 3) Группируем по sender_id: считаем total и собираем unique {title, rep}
+        // 3) Группируем по sender_id: считаем total и собираем список {title, rep}
         const bySender = {};
         allTransfers.forEach(tx => {
             const from  = tx.sender_id;
@@ -88,24 +85,21 @@ export default async function handler(req, res) {
                 bySender[from] = { total: 0, tokens: new Map() };
             }
             bySender[from].total += rep;
-            if (rep > 0 && title) {
+            if (title) {
                 bySender[from].tokens.set(title, rep);
             }
         });
 
-        // 4) Формируем массив и сортируем
+        // 4) Собираем итоговый массив
         const leaderboard = Object.entries(bySender)
             .map(([wallet, { total, tokens }]) => ({
                 wallet,
                 total,
-                tokens: Array.from(tokens.entries()).map(([title, rep]) => ({
-                    title, rep
-                }))
+                tokens: Array.from(tokens.entries()).map(([title, rep]) => ({ title, rep }))
             }))
             .sort((a, b) => b.total - a.total);
 
         return res.status(200).json({ leaderboard });
-
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: err.message });
