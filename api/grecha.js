@@ -32,21 +32,21 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Загружаем все входящие трансферы
+        // 1) Скачиваем входящие NFT-трансферы батчами
         let allTransfers = [];
         for (let offset = skip; ; offset += limit) {
-            const url = new URL(TRANSFERS_URL);
-            url.searchParams.set('wallet_id', walletId);
-            url.searchParams.set('direction', 'in');
-            url.searchParams.set('limit', String(limit));
-            url.searchParams.set('skip',  String(offset));
+            const u = new URL(TRANSFERS_URL);
+            u.searchParams.set('wallet_id', walletId);
+            u.searchParams.set('direction', 'in');
+            u.searchParams.set('limit', String(limit));
+            u.searchParams.set('skip',  String(offset));
 
-            const r = await fetch(url.toString());
+            const r = await fetch(u.toString());
             if (!r.ok) break;
             const { nft_transfers: batch } = await r.json();
             if (!Array.isArray(batch) || batch.length === 0) break;
 
-            // фильтр по времени
+            // 2) Фильтрация по времени (если задано)
             const filtered = batch.filter(tx => {
                 if (startNano === null && endNano === null) return true;
                 if (tx.timestamp_nanosec == null) return false;
@@ -60,17 +60,17 @@ export default async function handler(req, res) {
             if (batch.length < limit) break;
         }
 
-        // 2) Собираем set пришедших token_id
+        // 3) Собираем множество пришедших токенов
         const transferredTokenIds = new Set(
-            allTransfers.map(tx => (tx.args?.token_id) || tx.token_id)
+            allTransfers.map(tx => tx.args?.token_id || tx.token_id)
         );
 
-        // 3) Пытаемся получить репутации, но не падаем при ошибке
+        // 4) Пытаемся получить репутации (не падаем при 500)
         let repMap = {};
         try {
-            const repUrl  = new URL(REPUTATION_URL);
-            repUrl.searchParams.set('owner', walletId);
-            const repResp = await fetch(repUrl.toString());
+            const ru = new URL(REPUTATION_URL);
+            ru.searchParams.set('owner', walletId);
+            const repResp = await fetch(ru.toString());
             if (repResp.ok) {
                 const repJson = await repResp.json();
                 const records = Array.isArray(repJson.reputation_records)
@@ -89,27 +89,40 @@ export default async function handler(req, res) {
             } else {
                 console.warn(`Reputation API returned ${repResp.status}, skipping reputations`);
             }
-        } catch (err) {
-            console.warn('Failed to fetch reputation data:', err);
+        } catch (e) {
+            console.warn('Error fetching reputation:', e);
         }
 
-        // 4) Группируем по отправителю и суммируем
+        // 5) Группируем по отправителю и суммируем
         const sumsBySender = allTransfers.reduce((acc, tx) => {
             const from = tx.sender_id;
-            const tid  = (tx.args?.token_id) || tx.token_id;
+            const tid  = tx.args?.token_id || tx.token_id;
             const rep  = repMap[tid] || 0;
-            acc[from]  = (acc[from] || 0) + rep;
+            acc[from]   = (acc[from] || 0) + rep;
             return acc;
         }, {});
 
-        // 5) Формируем и отдаем лидерборд
+        // 6) Формируем и сортируем лидерборд
         const leaderboard = Object.entries(sumsBySender)
             .map(([wallet, total]) => ({ wallet, total }))
             .sort((a, b) => b.total - a.total);
 
+        // 7) Если передан debug=true, возвращаем отладочные данные
+        if (req.query.debug === 'true') {
+            return res.status(200).json({
+                leaderboard,
+                debug: {
+                    transferredTokenIds: Array.from(transferredTokenIds),
+                    repMap
+                }
+            });
+        }
+
+        // 8) Обычный ответ
         return res.status(200).json({ leaderboard });
+
     } catch (err) {
-        console.error('Unexpected error in handler:', err);
+        console.error('Unexpected error:', err);
         return res.status(500).json({ error: err.message });
     }
 }
