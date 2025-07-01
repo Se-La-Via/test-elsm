@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const limit    = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
-    // Парсим опциональный интервал
+    // --- парсим и валидируем start_time / end_time
     let startNano = null;
     if (req.query.start_time) {
         const parsed = Date.parse(req.query.start_time);
@@ -32,24 +32,24 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Скачиваем входящие NFT-трансферы батчами
+        // 1) Скачиваем NFT-трансферы батчами и фильтруем по дате
         let allTransfers = [];
         for (let offset = skip; ; offset += limit) {
             const u = new URL(TRANSFERS_URL);
             u.searchParams.set('wallet_id', walletId);
-            u.searchParams.set('direction', 'in');
-            u.searchParams.set('limit', String(limit));
-            u.searchParams.set('skip',  String(offset));
+            u.searchParams.set('direction',  'in');
+            u.searchParams.set('limit',      String(limit));
+            u.searchParams.set('skip',       String(offset));
 
             const r = await fetch(u.toString());
             if (!r.ok) break;
             const { nft_transfers: batch } = await r.json();
             if (!Array.isArray(batch) || batch.length === 0) break;
 
-            // 2) Фильтрация по времени (если задано)
             const filtered = batch.filter(tx => {
+                // если нет фильтра по датам — берём всё
                 if (startNano === null && endNano === null) return true;
-                if (tx.timestamp_nanosec == null) return false;
+                if (!tx.timestamp_nanosec) return false;
                 const ts = BigInt(tx.timestamp_nanosec);
                 if (startNano !== null && ts < startNano) return false;
                 if (endNano   !== null && ts > endNano)   return false;
@@ -60,12 +60,12 @@ export default async function handler(req, res) {
             if (batch.length < limit) break;
         }
 
-        // 3) Собираем множество пришедших токенов
+        // 2) Собираем сет строковых token_id, которые реально попали
         const transferredTokenIds = new Set(
-            allTransfers.map(tx => tx.args?.token_id || tx.token_id)
+            allTransfers.map(tx => String(tx.args?.token_id ?? tx.token_id))
         );
 
-        // 4) Пытаемся получить репутации (не падаем при 500)
+        // 3) Запрашиваем репутацию и собираем динамически из любых массивов
         let repMap = {};
         try {
             const ru = new URL(REPUTATION_URL);
@@ -78,12 +78,18 @@ export default async function handler(req, res) {
                     : [];
                 if (records.length > 0) {
                     const rec = records[0];
-                    for (const cat of ['horse_items', 'volga_items', 'reputation_nfts']) {
-                        (Array.isArray(rec[cat]) ? rec[cat] : []).forEach(item => {
-                            if (transferredTokenIds.has(item.token_id)) {
-                                repMap[item.token_id] = item.reputation;
+                    // обходим все ключи объекта rec
+                    for (const [k, arr] of Object.entries(rec)) {
+                        if (!Array.isArray(arr)) continue;
+                        for (const item of arr) {
+                            // интересуют только те элементы, у которых есть token_id и reputation
+                            if (item.token_id != null && typeof item.reputation === 'number') {
+                                const tid = String(item.token_id);
+                                if (transferredTokenIds.has(tid)) {
+                                    repMap[tid] = item.reputation;
+                                }
                             }
-                        });
+                        }
                     }
                 }
             } else {
@@ -93,21 +99,21 @@ export default async function handler(req, res) {
             console.warn('Error fetching reputation:', e);
         }
 
-        // 5) Группируем по отправителю и суммируем
+        // 4) Группируем по отправителю и суммируем
         const sumsBySender = allTransfers.reduce((acc, tx) => {
             const from = tx.sender_id;
-            const tid  = tx.args?.token_id || tx.token_id;
+            const tid  = String(tx.args?.token_id ?? tx.token_id);
             const rep  = repMap[tid] || 0;
             acc[from]   = (acc[from] || 0) + rep;
             return acc;
         }, {});
 
-        // 6) Формируем и сортируем лидерборд
+        // 5) Формируем и сортируем лидерборд
         const leaderboard = Object.entries(sumsBySender)
             .map(([wallet, total]) => ({ wallet, total }))
             .sort((a, b) => b.total - a.total);
 
-        // 7) Если передан debug=true, возвращаем отладочные данные
+        // 6) debug-mode?
         if (req.query.debug === 'true') {
             return res.status(200).json({
                 leaderboard,
@@ -118,7 +124,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // 8) Обычный ответ
+        // 7) обычный ответ
         return res.status(200).json({ leaderboard });
 
     } catch (err) {
