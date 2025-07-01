@@ -27,7 +27,8 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Пагинация: вытягиваем все входящие трансферы через skip/limit
+        // 1) Пагинация: вытягиваем все входящие NFT-трансферы по skip/limit,
+        //    учитывая только те, у которых method === 'nft_transfer'
         const allTransfers = [];
         let offset     = skip;
         let totalCount = Infinity;
@@ -43,15 +44,15 @@ export default async function handler(req, res) {
             if (!resp.ok) break;
 
             const json = await resp.json();
-            // Устанавливаем общее число записей по полю total
             if (typeof json.total === 'number') {
                 totalCount = json.total;
             }
             const batch = Array.isArray(json.nft_transfers) ? json.nft_transfers : [];
             if (batch.length === 0) break;
 
-            // Фильтруем по timestamp_nanosec, если задан период
+            // Фильтруем по методу и по времени (если задан период)
             const filtered = batch.filter(tx => {
+                if (tx.method !== 'nft_transfer') return false;
                 if (startNano === null && endNano === null) return true;
                 if (!tx.timestamp_nanosec) return false;
                 const ts = BigInt(tx.timestamp_nanosec);
@@ -59,8 +60,8 @@ export default async function handler(req, res) {
                 if (endNano   !== null && ts > endNano)   return false;
                 return true;
             });
-            allTransfers.push(...filtered);
 
+            allTransfers.push(...filtered);
             offset += limit;
         } while (offset < totalCount);
 
@@ -97,7 +98,6 @@ export default async function handler(req, res) {
             .sort((a, b) => b.total - a.total);
 
         return res.status(200).json({ leaderboard });
-
     } catch (err) {
         console.error('Error in nft-reputation handler:', err);
         return res.status(500).json({ error: err.message });
