@@ -5,120 +5,109 @@
     <title>NFT Reputation Leaderboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 1rem;
-        }
-        .controls {
-            margin-bottom: 1rem;
-        }
-        .controls label {
-            margin-right: 0.5rem;
-        }
-        .controls input {
-            margin-right: 1rem;
-        }
-        #leaderboard {
-            max-width: 600px;
-            margin-top: 1rem;
-        }
+        body { font-family: Arial, sans-serif; padding: 1rem; }
+        .controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1rem; }
+        .controls label { white-space: nowrap; }
+        .controls input[type="text"] { width: 150px; }
+        .controls input[type="datetime-local"] { width: 200px; }
+        #leaderboard { max-width: 600px; }
         .leaderboard-header, .leaderboard-item {
-            display: grid;
-            grid-template-columns: 1fr 3fr 2fr;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #ddd;
+            display: grid; grid-template-columns: 1fr 3fr 2fr;
+            padding: .5rem 0; border-bottom: 1px solid #ddd;
         }
-        .leaderboard-header {
-            font-weight: bold;
-            border-bottom: 2px solid #aaa;
-        }
-        .error {
-            color: red;
-            padding: 1rem 0;
-        }
+        .leaderboard-header { font-weight: bold; border-bottom: 2px solid #aaa; }
+        .error { color: red; padding: 1rem 0; }
     </style>
 </head>
 <body>
 <h1>NFT Reputation Leaderboard</h1>
 
 <div class="controls">
+    <label for="wallet">Wallet ID:</label>
+    <input type="text" id="wallet" value="azotq.tg" />
+
     <label for="start">С:</label>
-    <input type="datetime-local" id="start" />
+    <input
+            type="datetime-local"
+            id="start"
+            step="1"
+            value="2025-06-30T00:00:00"
+    />
+
     <label for="end">По:</label>
-    <input type="datetime-local" id="end" />
+    <input
+            type="datetime-local"
+            id="end"
+            step="1"
+            value="2025-07-01T23:59:59"
+    />
+
     <button id="refresh">Обновить</button>
 </div>
 
 <div id="leaderboard">
     <div class="leaderboard-header">
-        <div>№</div>
-        <div>Sender</div>
-        <div>Sum of Reputation</div>
+        <div>№</div><div>Sender</div><div>Sum of Reputation</div>
     </div>
     <div id="items"></div>
 </div>
 
 <script>
     const API_PATH     = '/api/nft-reputation';
-    const WALLET_ID    = 'feed_yupiks.near';
     const LIMIT        = 200;
     const MIN_INTERVAL = 5 * 60 * 1000; // 5 минут
     let lastFetchTime  = 0;
 
     document.getElementById('refresh').addEventListener('click', () => {
-        // сбросим таймаут, чтобы кнопка всегда давала запрос
         lastFetchTime = 0;
         fetchAndRender();
     });
-
-    // автозапрос при загрузке (один раз)
     window.addEventListener('DOMContentLoaded', fetchAndRender);
 
     async function fetchAndRender() {
         const now = Date.now();
-        // если вызов не «принудительный», то пропускаем, если слишком скоро
         if (now - lastFetchTime < MIN_INTERVAL) return;
         lastFetchTime = now;
 
-        const startInput = document.getElementById('start').value;
-        const endInput   = document.getElementById('end').value;
+        const wallet = document.getElementById('wallet').value.trim();
+        const start  = document.getElementById('start').value;
+        const end    = document.getElementById('end').value;
+        const out    = document.getElementById('items');
+        out.innerHTML = '';
 
-        const params = new URLSearchParams({
-            wallet_id: WALLET_ID,
-            limit:     LIMIT,
-            skip:      0
-        });
-        if (startInput) params.set('start_time', new Date(startInput).toISOString());
-        if (endInput)   params.set('end_time',   new Date(endInput).toISOString());
+        if (!wallet) {
+            out.innerHTML = `<div class="error">Укажите wallet_id.</div>`;
+            return;
+        }
 
-        const url = `${API_PATH}?${params.toString()}`;
-        const container = document.getElementById('items');
-        container.innerHTML = ''; // очистить
+        const ps = new URLSearchParams({ wallet_id: wallet, limit: LIMIT, skip: 0 });
+        if (start) ps.set('start_time', new Date(start).toISOString());
+        if (end)   ps.set('end_time',   new Date(end).toISOString());
+        // для отладки добавляем debug=true, если нужно
+        // ps.set('debug', 'true');
 
         try {
-            const resp = await fetch(url);
+            const resp = await fetch(`${API_PATH}?${ps.toString()}`);
             if (!resp.ok) throw new Error(`API ${resp.status}`);
             const { leaderboard } = await resp.json();
 
             if (!leaderboard.length) {
-                container.innerHTML = `<div class="error">Нет данных за указанный период.</div>`;
+                out.innerHTML = `<div class="error">Нет данных за указанный период.</div>`;
                 return;
             }
-
-            leaderboard.forEach((item, i) => {
+            leaderboard.forEach((it, i) => {
                 const row = document.createElement('div');
                 row.className = 'leaderboard-item';
                 row.innerHTML = `
-          <div>${i + 1}</div>
-          <div>${item.wallet}</div>
-          <div>${item.total.toLocaleString()}</div>
-        `;
-                container.appendChild(row);
+            <div>${i+1}</div>
+            <div>${it.wallet}</div>
+            <div>${it.total.toLocaleString()}</div>
+          `;
+                out.appendChild(row);
             });
-
-        } catch (err) {
-            container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
-            console.error(err);
+        } catch (e) {
+            out.innerHTML = `<div class="error">Ошибка: ${e.message}</div>`;
+            console.error(e);
         }
     }
 </script>
