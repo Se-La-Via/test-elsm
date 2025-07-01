@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const limit    = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
-    // парсим период (ISO-строки)
+    // Парсим опциональный фильтр по дате
     let startNano = null, endNano = null;
     if (req.query.start_time) {
         const d = Date.parse(req.query.start_time);
@@ -27,10 +27,11 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Скачиваем все входящие NFT-трансферы с пагинацией, фильтруем лишь method='nft_transfer'
+        // 1) Пагинация: собираем все входящие трансферы с method='nft_transfer'
         const allTransfers = [];
         let offset     = skip;
         let totalCount = Infinity;
+
         do {
             const url = new URL(TRANSFERS_URL);
             url.searchParams.set('wallet_id', walletId);
@@ -75,27 +76,34 @@ export default async function handler(req, res) {
             console.warn(`Unique-reputation API returned ${repResp.status}, skipping reputations`);
         }
 
-        // 3) Группируем по sender_id: считаем total и собираем список {title, rep}
+        // 3) Группируем по sender_id: считаем total и собираем токены с count и rep
         const bySender = {};
         allTransfers.forEach(tx => {
             const from  = tx.sender_id;
             const title = (tx.args?.title || '').trim().toLowerCase();
-            const rep   = repMap[title] || 0;
+            if (!title) return;
+
+            const rep = repMap[title] || 0;
             if (!bySender[from]) {
-                bySender[from] = { total: 0, tokens: new Map() };
+                bySender[from] = { total: 0, tokens: {} };
             }
             bySender[from].total += rep;
-            if (title) {
-                bySender[from].tokens.set(title, rep);
+
+            // инициализируем запись по токену
+            if (!bySender[from].tokens[title]) {
+                bySender[from].tokens[title] = { title, count: 0, rep, totalRep: 0 };
             }
+            const rec = bySender[from].tokens[title];
+            rec.count += 1;
+            rec.totalRep = rec.count * rec.rep;
         });
 
-        // 4) Собираем итоговый массив
+        // 4) Формируем итоговый массив
         const leaderboard = Object.entries(bySender)
             .map(([wallet, { total, tokens }]) => ({
                 wallet,
                 total,
-                tokens: Array.from(tokens.entries()).map(([title, rep]) => ({ title, rep }))
+                tokens: Object.values(tokens)
             }))
             .sort((a, b) => b.total - a.total);
 
