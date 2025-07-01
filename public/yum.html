@@ -73,16 +73,16 @@
 <body>
 <h1>YUM - склейка</h1>
 
-<!-- Поля выбора временного диапазона -->
+<!-- Time range selection fields -->
 <div id="filter-controls" style="margin: 20px; text-align: center;">
     <label>
         С:
-        <input type="datetime-local" id="since-input" value="2025-06-11T00:00" />
+        <input type="datetime-local" id="since-input" value="2025-06-30T19:50" />
     </label>
     &nbsp;
     <label>
         По:
-        <input type="datetime-local" id="until-input" value="2025-06-22T23:59" />
+        <input type="datetime-local" id="until-input" value="2025-07-02T23:59" />
     </label>
     &nbsp;
     <button id="apply-filter">Применить</button>
@@ -106,7 +106,7 @@
 
     let lastFetchTime = 0;
 
-    // Получение значений из полей ввода и преобразование в миллисекунды
+    // Getting values from input fields and converting to milliseconds
     function getFilterRange() {
         const sinceInput = document.getElementById('since-input').value;
         const untilInput = document.getElementById('until-input').value;
@@ -118,7 +118,7 @@
         };
     }
 
-    // Загрузка всех батчей переводов
+    // Downloading all translation batches
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -137,7 +137,7 @@
         return all;
     }
 
-    // Отрисовка таблицы с учётом фильтра по времени
+    // Drawing table with time filtering
     async function renderBoard() {
         const now = Date.now();
         if (now - lastFetchTime < MIN_INTERVAL) return;
@@ -193,7 +193,7 @@ ${sinceStr.replace('T',' ')} — ${untilStr.replace('T',' ')}
         }
     }
 
-    // Привязка событий
+    // Event linking
     document.getElementById('apply-filter')
         .addEventListener('click', renderBoard);
     window.addEventListener('DOMContentLoaded', renderBoard);
