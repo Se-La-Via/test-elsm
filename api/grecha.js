@@ -1,17 +1,17 @@
 // api/nft-reputation.js
 import fetch from 'node-fetch';
 
-const TRANSFERS_URL          = 'https://dialog-tbot.com/history/nft-transfers/';
-const UNIQUE_REPUTATION_URL  = 'https://dialog-tbot.com/nft/unique-reputation/';
-const DEFAULT_LIMIT          = 200;
-const DEFAULT_SKIP           = 0;
+const TRANSFERS_URL         = 'https://dialog-tbot.com/history/nft-transfers/';
+const UNIQUE_REPUTATION_URL = 'https://dialog-tbot.com/nft/unique-reputation/';
+const DEFAULT_LIMIT         = 200;
+const DEFAULT_SKIP          = 0;
 
 export default async function handler(req, res) {
     const walletId = req.query.wallet_id;
     const limit    = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
-    // парсим опциональный фильтр по дате (ISO-строки)
+    // Опциональный фильтр по дате (ISO-строки)
     let startNano = null, endNano = null;
     if (req.query.start_time) {
         const d = Date.parse(req.query.start_time);
@@ -27,9 +27,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Скачиваем все входящие NFT-трансферы в указанном периоде
-        let allTransfers = [];
-        for (let offset = skip; ; offset += limit) {
+        // 1) Пагинация: скачиваем все входящие NFT-трансферы по кускам, пока не кончатся или не выйдем за период
+        const allTransfers = [];
+        let offset = skip;
+        while (true) {
             const url = new URL(TRANSFERS_URL);
             url.searchParams.set('wallet_id', walletId);
             url.searchParams.set('direction',  'in');
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
             const { nft_transfers: batch } = await resp.json();
             if (!Array.isArray(batch) || batch.length === 0) break;
 
-            // фильтруем по timestamp_nanosec, если заданы границы
+            // фильтрация по временному промежутку
             const filtered = batch.filter(tx => {
                 if (startNano === null && endNano === null) return true;
                 if (!tx.timestamp_nanosec) return false;
@@ -50,30 +51,36 @@ export default async function handler(req, res) {
                 if (endNano   !== null && ts > endNano)   return false;
                 return true;
             });
-
             allTransfers.push(...filtered);
-            if (batch.length < limit) break;
+
+            // если фильтруем по startNano и самый старый в batch уже до фильтра, можно выйти
+            if (startNano !== null) {
+                const last = batch[batch.length - 1];
+                if (last.timestamp_nanosec) {
+                    const lastTs = BigInt(last.timestamp_nanosec);
+                    if (lastTs < startNano) break;
+                }
+            }
+
+            offset += limit;
         }
 
-        // 2) Запрашиваем уникальные репутации (по названию)
+        // 2) Получаем репутации по названиям из UNIQUE_REPUTATION_URL
         const repResp = await fetch(UNIQUE_REPUTATION_URL);
         const repMap  = {};
         if (repResp.ok) {
             const repJson = await repResp.json();
-            // ответ содержит поле `nfts`: массив объектов { title, reputation, … }
             const records = Array.isArray(repJson.nfts) ? repJson.nfts : [];
             for (const item of records) {
                 if (typeof item.title === 'string' && typeof item.reputation === 'number') {
-                    // ключ — название в нижнем регистре для надёжного совпадения
-                    const key = item.title.trim().toLowerCase();
-                    repMap[key] = item.reputation;
+                    repMap[item.title.trim().toLowerCase()] = item.reputation;
                 }
             }
         } else {
             console.warn(`Unique-reputation API returned ${repResp.status}, skipping reputations`);
         }
 
-        // 3) Группируем по отправителю и суммируем репутацию по title
+        // 3) Группируем по sender_id и суммируем по совпадению title
         const sumsBySender = allTransfers.reduce((acc, tx) => {
             const from  = tx.sender_id;
             const title = String(tx.args?.title || '')
