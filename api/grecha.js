@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const limit    = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
-    // 1) Парсим и валидируем опциональные интервалы
+    // Парсим опциональный интервал
     let startNano = null;
     if (req.query.start_time) {
         const parsed = Date.parse(req.query.start_time);
@@ -28,13 +28,11 @@ export default async function handler(req, res) {
     }
 
     if (!walletId) {
-        return res
-            .status(400)
-            .json({ error: 'Parameter wallet_id is required' });
+        return res.status(400).json({ error: 'Parameter wallet_id is required' });
     }
 
     try {
-        // 2) Собираем все входящие NFT-трансферы
+        // 1) Загружаем все входящие трансферы
         let allTransfers = [];
         for (let offset = skip; ; offset += limit) {
             const url = new URL(TRANSFERS_URL);
@@ -48,16 +46,10 @@ export default async function handler(req, res) {
             const { nft_transfers: batch } = await r.json();
             if (!Array.isArray(batch) || batch.length === 0) break;
 
-            // 3) Фильтруем по timestamp_nanosec (только если заданы startNano/endNano)
+            // фильтр по времени
             const filtered = batch.filter(tx => {
-                // если ни даты начала, ни даты конца не заданы — не фильтруем
-                if (startNano === null && endNano === null) {
-                    return true;
-                }
-                // пропускаем, если нет поля timestamp_nanosec
-                if (tx.timestamp_nanosec == null) {
-                    return false;
-                }
+                if (startNano === null && endNano === null) return true;
+                if (tx.timestamp_nanosec == null) return false;
                 const ts = BigInt(tx.timestamp_nanosec);
                 if (startNano !== null && ts < startNano) return false;
                 if (endNano   !== null && ts > endNano)   return false;
@@ -68,55 +60,56 @@ export default async function handler(req, res) {
             if (batch.length < limit) break;
         }
 
-        // 4) Собираем множество токенов, реально пришедших в фильтре
+        // 2) Собираем set пришедших token_id
         const transferredTokenIds = new Set(
-            allTransfers.map(tx =>
-                (tx.args && tx.args.token_id) || tx.token_id
-            )
+            allTransfers.map(tx => (tx.args?.token_id) || tx.token_id)
         );
 
-        // 5) Получаем репутацию владельца
-        const repUrl  = new URL(REPUTATION_URL);
-        repUrl.searchParams.set('owner', walletId);
-        const repResp = await fetch(repUrl.toString());
-        if (!repResp.ok) {
-            throw new Error(`Reputation API error: ${repResp.status}`);
-        }
-        const repJson = await repResp.json();
-
-        // 6) Формируем map token_id → reputation (учитываем только отфильтрованные токены)
-        const repMap = {};
-        const records = Array.isArray(repJson.reputation_records)
-            ? repJson.reputation_records
-            : [];
-        if (records.length > 0) {
-            const rec = records[0];
-            ['horse_items', 'volga_items', 'reputation_nfts'].forEach(cat => {
-                (Array.isArray(rec[cat]) ? rec[cat] : []).forEach(item => {
-                    if (transferredTokenIds.has(item.token_id)) {
-                        repMap[item.token_id] = item.reputation;
+        // 3) Пытаемся получить репутации, но не падаем при ошибке
+        let repMap = {};
+        try {
+            const repUrl  = new URL(REPUTATION_URL);
+            repUrl.searchParams.set('owner', walletId);
+            const repResp = await fetch(repUrl.toString());
+            if (repResp.ok) {
+                const repJson = await repResp.json();
+                const records = Array.isArray(repJson.reputation_records)
+                    ? repJson.reputation_records
+                    : [];
+                if (records.length > 0) {
+                    const rec = records[0];
+                    for (const cat of ['horse_items', 'volga_items', 'reputation_nfts']) {
+                        (Array.isArray(rec[cat]) ? rec[cat] : []).forEach(item => {
+                            if (transferredTokenIds.has(item.token_id)) {
+                                repMap[item.token_id] = item.reputation;
+                            }
+                        });
                     }
-                });
-            });
+                }
+            } else {
+                console.warn(`Reputation API returned ${repResp.status}, skipping reputations`);
+            }
+        } catch (err) {
+            console.warn('Failed to fetch reputation data:', err);
         }
 
-        // 7) Группируем по отправителю и суммируем репутации
+        // 4) Группируем по отправителю и суммируем
         const sumsBySender = allTransfers.reduce((acc, tx) => {
             const from = tx.sender_id;
-            const tid  = (tx.args && tx.args.token_id) || tx.token_id;
+            const tid  = (tx.args?.token_id) || tx.token_id;
             const rep  = repMap[tid] || 0;
             acc[from]  = (acc[from] || 0) + rep;
             return acc;
         }, {});
 
-        // 8) Сортируем итоговый лидерборд и возвращаем
+        // 5) Формируем и отдаем лидерборд
         const leaderboard = Object.entries(sumsBySender)
             .map(([wallet, total]) => ({ wallet, total }))
             .sort((a, b) => b.total - a.total);
 
         return res.status(200).json({ leaderboard });
     } catch (err) {
-        console.error(err);
+        console.error('Unexpected error in handler:', err);
         return res.status(500).json({ error: err.message });
     }
 }
