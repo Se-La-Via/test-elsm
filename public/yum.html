@@ -72,6 +72,22 @@
 </head>
 <body>
 <h1>YUM - склейка</h1>
+
+<!-- Поля выбора временного диапазона -->
+<div id="filter-controls" style="margin: 20px; text-align: center;">
+    <label>
+        С:
+        <input type="datetime-local" id="since-input" value="2025-06-11T00:00" />
+    </label>
+    &nbsp;
+    <label>
+        По:
+        <input type="datetime-local" id="until-input" value="2025-06-22T23:59" />
+    </label>
+    &nbsp;
+    <button id="apply-filter">Применить</button>
+</div>
+
 <div id="leaderboard">
     <div class="leaderboard-header">
         <div class="col-1">№</div>
@@ -82,20 +98,27 @@
 </div>
 
 <script>
-    const API_PATH = '/api/grecha';
-    const WALLET_ID = 'feed_yupiks.near';
-    const SYMBOL    = 'YUM';
-    const SINCE_DATETIME = '2025-06-11T00:00';
-    const UNTIL_DATETIME = '2025-06-22T23:59';
-    const SINCE_MS     = new Date(SINCE_DATETIME).getTime();
-    const UNTIL_MS     = new Date(UNTIL_DATETIME).getTime();
-    const BATCH = 200;
+    const API_PATH     = '/api/grecha';
+    const WALLET_ID    = 'feed_yupiks.near';
+    const SYMBOL       = 'YUM';
+    const BATCH        = 200;
     const MIN_INTERVAL = 5 * 60 * 1000;  // 5 minutes in ms.
 
-    // Time of the last real request
     let lastFetchTime = 0;
 
-    // Download all batches of 200 until an “incomplete” batch is returned
+    // Получение значений из полей ввода и преобразование в миллисекунды
+    function getFilterRange() {
+        const sinceInput = document.getElementById('since-input').value;
+        const untilInput = document.getElementById('until-input').value;
+        return {
+            sinceStr: sinceInput,
+            untilStr: untilInput,
+            sinceMs: new Date(sinceInput).getTime(),
+            untilMs: new Date(untilInput).getTime()
+        };
+    }
+
+    // Загрузка всех батчей переводов
     async function fetchAll() {
         let all = [];
         for (let skip = 0; ; skip += BATCH) {
@@ -114,44 +137,39 @@
         return all;
     }
 
-    // Renders the leaderboard, but actually requests the API no more often than 1×/5min
+    // Отрисовка таблицы с учётом фильтра по времени
     async function renderBoard() {
         const now = Date.now();
-        // If less than MIN_INTERVAL has elapsed since the last fetch - exit
-        if (now - lastFetchTime < MIN_INTERVAL) {
-            console.log(`Пропускаем запрос: прошло ${(now - lastFetchTime)/1000 | 0}s`);
-            return;
-        }
+        if (now - lastFetchTime < MIN_INTERVAL) return;
         lastFetchTime = now;
 
+        const { sinceStr, untilStr, sinceMs, untilMs } = getFilterRange();
         const container = document.getElementById('items');
         container.innerHTML = '';
+
         try {
             let data = await fetchAll();
-            // Filtering by two time limits
             data = data.filter(tx => {
                 const txMs = Number(tx.timestamp_nanosec) / 1e6;
-                return txMs >= SINCE_MS && txMs <= UNTIL_MS;
+                return txMs >= sinceMs && txMs <= untilMs;
             });
 
-            // Group and divide by 1000
             const sums = data.reduce((acc, tx) => {
                 const raw = parseFloat(tx.amount);
-                const val = isNaN(raw) ? 0 : raw/100000;
+                const val = isNaN(raw) ? 0 : raw / 100000;
                 acc[tx.from] = (acc[tx.from] || 0) + val;
                 return acc;
             }, {});
 
-            // Sort and output
             const sorted = Object.entries(sums)
                 .map(([wallet, total]) => ({ wallet, total }))
-                .sort((a,b) => b.total - a.total);
+                .sort((a, b) => b.total - a.total);
 
             if (!sorted.length) {
                 container.innerHTML = `<div class="error">
-              Нет переводов в период<br>
-              ${SINCE_DATETIME.replace('T',' ')} — ${UNTIL_DATETIME.replace('T',' ')}
-            </div>`;
+Нет переводов в период<br>
+${sinceStr.replace('T',' ')} — ${untilStr.replace('T',' ')}
+</div>`;
                 return;
             }
 
@@ -159,23 +177,25 @@
                 const row = document.createElement('div');
                 row.className = 'leaderboard-item';
                 row.innerHTML = `
-            <div class="col-1">${i+1}</div>
-            <div class="col-2">${item.wallet}</div>
-            <div class="col-3">
-              ${item.total.toLocaleString(undefined,{
-                    minimumFractionDigits:3,
-                    maximumFractionDigits:3
+    <div class="col-1">${i + 1}</div>
+    <div class="col-2">${item.wallet}</div>
+    <div class="col-3">
+      ${item.total.toLocaleString(undefined, {
+                    minimumFractionDigits: 3,
+                    maximumFractionDigits: 3
                 })}
-            </div>`;
+    </div>`;
                 container.appendChild(row);
             });
-
         } catch (err) {
             container.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
             console.error(err);
         }
     }
 
+    // Привязка событий
+    document.getElementById('apply-filter')
+        .addEventListener('click', renderBoard);
     window.addEventListener('DOMContentLoaded', renderBoard);
 </script>
 </body>
