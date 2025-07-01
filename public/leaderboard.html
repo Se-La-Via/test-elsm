@@ -2,45 +2,99 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>NFT-Репутационный лидерборд</title>
+    <title>NFT Reputation Leaderboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        /* оставляем ваши стили из LUDO-GRECHA */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 1rem;
+        }
+        .controls {
+            margin-bottom: 1rem;
+        }
+        .controls label {
+            margin-right: 0.5rem;
+        }
+        .controls input {
+            margin-right: 1rem;
+        }
+        #leaderboard {
+            max-width: 600px;
+            margin-top: 1rem;
+        }
+        .leaderboard-header, .leaderboard-item {
+            display: grid;
+            grid-template-columns: 1fr 3fr 2fr;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .leaderboard-header {
+            font-weight: bold;
+            border-bottom: 2px solid #aaa;
+        }
+        .error {
+            color: red;
+            padding: 1rem 0;
+        }
     </style>
 </head>
 <body>
 <h1>NFT Reputation Leaderboard</h1>
+
+<div class="controls">
+    <label for="start">С:</label>
+    <input type="datetime-local" id="start" />
+    <label for="end">По:</label>
+    <input type="datetime-local" id="end" />
+    <button id="refresh">Обновить</button>
+</div>
+
 <div id="leaderboard">
     <div class="leaderboard-header">
-        <div class="col-1">№</div>
-        <div class="col-2">Sender</div>
-        <div class="col-3">Sum of Reputation</div>
+        <div>№</div>
+        <div>Sender</div>
+        <div>Sum of Reputation</div>
     </div>
     <div id="items"></div>
 </div>
 
 <script>
-    const API_PATH      = '/api/grecha';
-    const WALLET_ID     = 'azotq.tg';
-    const LIMIT         = 200;
-    const MIN_INTERVAL  = 5 * 60 * 1000; // 5 минут
-    let lastFetchTime   = 0;
+    const API_PATH     = '/api/nft-reputation';
+    const WALLET_ID    = 'azotq.tg';
+    const LIMIT        = 200;
+    const MIN_INTERVAL = 5 * 60 * 1000; // 5 минут
+    let lastFetchTime  = 0;
 
-    async function fetchAll() {
+    document.getElementById('refresh').addEventListener('click', fetchAndRender);
+
+    async function fetchAndRender() {
         const now = Date.now();
-        if (now - lastFetchTime < MIN_INTERVAL) return [];
+        if (now - lastFetchTime < MIN_INTERVAL) return;
         lastFetchTime = now;
 
+        const startInput = document.getElementById('start').value;
+        const endInput   = document.getElementById('end').value;
+
+        // Собираем параметры запроса
+        const params = new URLSearchParams({
+            wallet_id: WALLET_ID,
+            limit:     LIMIT,
+            skip:      0
+        });
+        if (startInput) params.set('start_time', new Date(startInput).toISOString());
+        if (endInput)   params.set('end_time',   new Date(endInput).toISOString());
+
+        const url = `${API_PATH}?${params.toString()}`;
         const container = document.getElementById('items');
-        container.innerHTML = '';
+        container.innerHTML = ''; // сброс
 
         try {
-            const resp = await fetch(`${API_PATH}?wallet_id=${encodeURIComponent(WALLET_ID)}&limit=${LIMIT}&skip=0`);
+            const resp = await fetch(url);
             if (!resp.ok) throw new Error(`API ${resp.status}`);
             const { leaderboard } = await resp.json();
 
             if (!leaderboard.length) {
-                container.innerHTML = `<div class="error">Нет репутационных баллов за последние трансферы.</div>`;
+                container.innerHTML = `<div class="error">Нет данных за указанный период.</div>`;
                 return;
             }
 
@@ -48,12 +102,9 @@
                 const row = document.createElement('div');
                 row.className = 'leaderboard-item';
                 row.innerHTML = `
-            <div class="col-1">${i+1}</div>
-            <div class="col-2">${item.wallet}</div>
-            <div class="col-3">${item.total.toLocaleString(undefined, {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                })}</div>
+            <div>${i + 1}</div>
+            <div>${item.wallet}</div>
+            <div>${item.total.toLocaleString()}</div>
           `;
                 container.appendChild(row);
             });
@@ -64,7 +115,8 @@
         }
     }
 
-    window.addEventListener('DOMContentLoaded', fetchAll);
+    // автозапрос при загрузке страницы (если нужно)
+    window.addEventListener('DOMContentLoaded', fetchAndRender);
 </script>
 </body>
 </html>
