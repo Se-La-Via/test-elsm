@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const limit    = Number(req.query.limit) || DEFAULT_LIMIT;
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
-    // Опциональный фильтр по дате
+    // парсим опциональный фильтр по дате (ISO-строки)
     let startNano = null, endNano = null;
     if (req.query.start_time) {
         const d = Date.parse(req.query.start_time);
@@ -27,21 +27,21 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1) Скачиваем все входящие NFT-трансферы (батчами)
+        // 1) Скачиваем все входящие NFT-трансферы в указанном периоде
         let allTransfers = [];
         for (let offset = skip; ; offset += limit) {
             const url = new URL(TRANSFERS_URL);
             url.searchParams.set('wallet_id', walletId);
-            url.searchParams.set('direction', 'in');
-            url.searchParams.set('limit',  String(limit));
-            url.searchParams.set('skip',   String(offset));
+            url.searchParams.set('direction',  'in');
+            url.searchParams.set('limit',      String(limit));
+            url.searchParams.set('skip',       String(offset));
 
             const resp = await fetch(url.toString());
             if (!resp.ok) break;
             const { nft_transfers: batch } = await resp.json();
             if (!Array.isArray(batch) || batch.length === 0) break;
 
-            // 2) Фильтруем по timestamp_nanosec, если заданы start/end
+            // фильтруем по timestamp_nanosec, если заданы границы
             const filtered = batch.filter(tx => {
                 if (startNano === null && endNano === null) return true;
                 if (!tx.timestamp_nanosec) return false;
@@ -55,20 +55,16 @@ export default async function handler(req, res) {
             if (batch.length < limit) break;
         }
 
-        // 3) Загружаем уникальные репутации по названию NFT
+        // 2) Запрашиваем уникальные репутации (по названию)
         const repResp = await fetch(UNIQUE_REPUTATION_URL);
         const repMap  = {};
         if (repResp.ok) {
             const repJson = await repResp.json();
-            // Предполагаем, что repJson.unique_reputation_records — массив объектов
-            // с полями { title, reputation, token_id, ... }
-            const records = Array.isArray(repJson.unique_reputation_records)
-                ? repJson.unique_reputation_records
-                : Array.isArray(repJson)
-                    ? repJson
-                    : [];
+            // ответ содержит поле `nfts`: массив объектов { title, reputation, … }
+            const records = Array.isArray(repJson.nfts) ? repJson.nfts : [];
             for (const item of records) {
                 if (typeof item.title === 'string' && typeof item.reputation === 'number') {
+                    // ключ — название в нижнем регистре для надёжного совпадения
                     const key = item.title.trim().toLowerCase();
                     repMap[key] = item.reputation;
                 }
@@ -77,16 +73,18 @@ export default async function handler(req, res) {
             console.warn(`Unique-reputation API returned ${repResp.status}, skipping reputations`);
         }
 
-        // 4) Группируем по sender_id, суммируя репутацию по названию
+        // 3) Группируем по отправителю и суммируем репутацию по title
         const sumsBySender = allTransfers.reduce((acc, tx) => {
             const from  = tx.sender_id;
-            const title = String(tx.args?.title || '').trim().toLowerCase();
+            const title = String(tx.args?.title || '')
+                .trim()
+                .toLowerCase();
             const rep   = repMap[title] || 0;
             acc[from]   = (acc[from] || 0) + rep;
             return acc;
         }, {});
 
-        // 5) Формируем и возвращаем отсортированный лидерборд
+        // 4) Формируем и возвращаем отсортированный лидерборд
         const leaderboard = Object.entries(sumsBySender)
             .map(([wallet, total]) => ({ wallet, total }))
             .sort((a, b) => b.total - a.total);
