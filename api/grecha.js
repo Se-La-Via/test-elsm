@@ -1,10 +1,10 @@
 // api/nft-reputation.js
 import fetch from 'node-fetch';
 
-const TRANSFERS_URL   = 'https://dialog-tbot.com/history/nft-transfers/';
-const REPUTATION_URL  = 'https://dialog-tbot.com/reputation/';
-const DEFAULT_LIMIT   = 200;
-const DEFAULT_SKIP    = 0;
+const TRANSFERS_URL  = 'https://dialog-tbot.com/history/nft-transfers/';
+const REPUTATION_URL = 'https://dialog-tbot.com/reputation/';
+const DEFAULT_LIMIT  = 200;
+const DEFAULT_SKIP   = 0;
 
 export default async function handler(req, res) {
     const walletId = req.query.wallet_id;
@@ -12,13 +12,11 @@ export default async function handler(req, res) {
     const skip     = Number(req.query.skip)  || DEFAULT_SKIP;
 
     if (!walletId) {
-        return res
-            .status(400)
-            .json({ error: 'Parameter wallet_id is required' });
+        return res.status(400).json({ error: 'Parameter wallet_id is required' });
     }
 
     try {
-        // --- 1) Скачиваем все NFT-трансферы на кошелек
+        // 1) Собираем все входящие трансферы
         let allTransfers = [];
         for (let s = skip; ; s += limit) {
             const url = new URL(TRANSFERS_URL);
@@ -35,19 +33,23 @@ export default async function handler(req, res) {
             if (transfers.length < limit) break;
         }
 
-        // --- 2) Получаем репутацию всех полученных NFT одним запросом
-        const repUrl = new URL(REPUTATION_URL);
+        // 2) Получаем репутации и приводим к мапе token_id → reputation
+        const repUrl  = new URL(REPUTATION_URL);
         repUrl.searchParams.set('owner', walletId);
         const repResp = await fetch(repUrl.toString());
         if (!repResp.ok) throw new Error(`Reputation API ${repResp.status}`);
         const repData = await repResp.json();
-        // предполагаем, что repData — массив объектов { token_id, reputation }
-        const repMap = {};
-        for (const item of repData) {
-            repMap[item.token_id] = item.reputation;
+
+        let repMap = {};
+        if (Array.isArray(repData)) {
+            for (const item of repData) {
+                repMap[item.token_id] = item.reputation;
+            }
+        } else if (repData && typeof repData === 'object') {
+            repMap = repData;
         }
 
-        // --- 3) Группируем по отправителю и суммируем репутации
+        // 3) Группируем по отправителю и суммируем репутации
         const sumsBySender = allTransfers.reduce((acc, tx) => {
             const from = tx.from;
             const rep  = repMap[tx.token_id] || 0;
@@ -55,7 +57,7 @@ export default async function handler(req, res) {
             return acc;
         }, {});
 
-        // --- 4) Сортируем и отдаем
+        // 4) Формируем и возвращаем отсортированный лидерборд
         const leaderboard = Object.entries(sumsBySender)
             .map(([wallet, total]) => ({ wallet, total }))
             .sort((a, b) => b.total - a.total);
